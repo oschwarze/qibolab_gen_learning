@@ -14,14 +14,13 @@ PLATFORM_NAMES = ["dummy", "dummy_couplers"]
 def test_dummy_initialization(name):
     platform = create_platform(name)
     platform.connect()
-    platform.setup()
-    platform.start()
-    platform.stop()
     platform.disconnect()
 
 
 @pytest.mark.parametrize("name", PLATFORM_NAMES)
-@pytest.mark.parametrize("acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.RAW])
+@pytest.mark.parametrize(
+    "acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.RAW]
+)
 def test_dummy_execute_pulse_sequence(name, acquisition):
     nshots = 100
     platform = create_platform(name)
@@ -37,6 +36,21 @@ def test_dummy_execute_pulse_sequence(name, acquisition):
         assert result[0].magnitude.shape == (nshots * ro_pulse.duration,)
 
 
+def test_dummy_execute_flux_pulse():
+    platform = create_platform("dummy")
+    sequence = PulseSequence()
+
+    pulse = platform.create_qubit_flux_pulse(qubit=0, start=0, duration=50)
+    sequence.add(pulse)
+
+    options = ExecutionParameters(nshots=None)
+    _ = platform.execute_pulse_sequence(sequence, options)
+
+    test_pulse = "FluxPulse(0, 50, 1, Rectangular(), flux-0, 0)"
+
+    assert test_pulse == pulse.serial
+
+
 def test_dummy_execute_coupler_pulse():
     platform = create_platform("dummy_couplers")
     sequence = PulseSequence()
@@ -47,14 +61,18 @@ def test_dummy_execute_coupler_pulse():
     options = ExecutionParameters(nshots=None)
     result = platform.execute_pulse_sequence(sequence, options)
 
-    test_pulse = "CouplerFluxPulse(0, 30, 0.05, Rectangular(), flux_coupler-0, 0)"
+    test_pulse = (
+        "CouplerFluxPulse(0, 30, 0.05, GaussianSquare(5, 0.75), flux_coupler-0, 0)"
+    )
 
     assert test_pulse == pulse.serial
 
 
 def test_dummy_execute_pulse_sequence_couplers():
     platform = create_platform("dummy_couplers")
-    qubit_ordered_pair = QubitPair(platform.qubits[1], platform.qubits[2], platform.couplers[1])
+    qubit_ordered_pair = QubitPair(
+        platform.qubits[1], platform.qubits[2], platform.couplers[1]
+    )
     sequence = PulseSequence()
 
     cz, cz_phases = platform.create_CZ_pulse_sequence(
@@ -69,7 +87,7 @@ def test_dummy_execute_pulse_sequence_couplers():
     options = ExecutionParameters(nshots=None)
     result = platform.execute_pulse_sequence(sequence, options)
 
-    test_pulses = "PulseSequence\nFluxPulse(0, 30, 0.05, Rectangular(), flux-2, 2)\nCouplerFluxPulse(0, 30, 0.05, Rectangular(), flux_coupler-1, 1)"
+    test_pulses = "PulseSequence\nFluxPulse(0, 30, 0.05, GaussianSquare(5, 0.75), flux-2, 2)\nCouplerFluxPulse(0, 30, 0.05, GaussianSquare(5, 0.75), flux_coupler-1, 1)"
     test_phases = {1: 0.0, 2: 0.0}
 
     assert test_pulses == cz.serial
@@ -86,7 +104,9 @@ def test_dummy_execute_pulse_sequence_fast_reset(name):
 
 
 @pytest.mark.parametrize("name", PLATFORM_NAMES)
-@pytest.mark.parametrize("acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION])
+@pytest.mark.parametrize(
+    "acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION]
+)
 @pytest.mark.parametrize("batch_size", [None, 3, 5])
 def test_dummy_execute_pulse_sequence_unrolling(name, acquisition, batch_size):
     nshots = 100
@@ -125,22 +145,31 @@ def test_dummy_single_sweep_raw(name):
     results = platform.sweep(sequence, options, sweeper)
     assert pulse.serial and pulse.qubit in results
     shape = results[pulse.qubit].magnitude.shape
-    samples = platform.settings.sampling_rate * 1e-9 * pulse.duration
-
-    assert shape == (samples * SWEPT_POINTS,)
+    assert shape == (pulse.duration * SWEPT_POINTS,)
 
 
 @pytest.mark.parametrize("fast_reset", [True, False])
-@pytest.mark.parametrize("parameter", [Parameter.amplitude, Parameter.duration, Parameter.bias])
+@pytest.mark.parametrize(
+    "parameter", [Parameter.amplitude, Parameter.duration, Parameter.bias]
+)
 @pytest.mark.parametrize("average", [AveragingMode.SINGLESHOT, AveragingMode.CYCLIC])
-@pytest.mark.parametrize("acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION])
+@pytest.mark.parametrize(
+    "acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION]
+)
 @pytest.mark.parametrize("nshots", [10, 20])
-def test_dummy_single_sweep_coupler(fast_reset, parameter, average, acquisition, nshots):
+def test_dummy_single_sweep_coupler(
+    fast_reset, parameter, average, acquisition, nshots
+):
     platform = create_platform("dummy_couplers")
     sequence = PulseSequence()
     ro_pulse = platform.create_qubit_readout_pulse(qubit=0, start=0)
     coupler_pulse = CouplerFluxPulse(
-        start=0, duration=40, amplitude=0.5, shape="Rectangular()", channel="flux_coupler-0", qubit=0
+        start=0,
+        duration=40,
+        amplitude=0.5,
+        shape="GaussianSquare(5, 0.75)",
+        channel="flux_coupler-0",
+        qubit=0,
     )
     if parameter is Parameter.amplitude:
         parameter_range = np.random.rand(SWEPT_POINTS)
@@ -151,7 +180,6 @@ def test_dummy_single_sweep_coupler(fast_reset, parameter, average, acquisition,
         sweeper = Sweeper(parameter, parameter_range, couplers=[platform.couplers[0]])
     else:
         sweeper = Sweeper(parameter, parameter_range, pulses=[coupler_pulse])
-    print(sweeper)
     options = ExecutionParameters(
         nshots=nshots,
         averaging_mode=average,
@@ -181,7 +209,9 @@ def test_dummy_single_sweep_coupler(fast_reset, parameter, average, acquisition,
 @pytest.mark.parametrize("fast_reset", [True, False])
 @pytest.mark.parametrize("parameter", Parameter)
 @pytest.mark.parametrize("average", [AveragingMode.SINGLESHOT, AveragingMode.CYCLIC])
-@pytest.mark.parametrize("acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION])
+@pytest.mark.parametrize(
+    "acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION]
+)
 @pytest.mark.parametrize("nshots", [10, 20])
 def test_dummy_single_sweep(name, fast_reset, parameter, average, acquisition, nshots):
     platform = create_platform(name)
@@ -225,7 +255,9 @@ def test_dummy_single_sweep(name, fast_reset, parameter, average, acquisition, n
 @pytest.mark.parametrize("parameter1", Parameter)
 @pytest.mark.parametrize("parameter2", Parameter)
 @pytest.mark.parametrize("average", [AveragingMode.SINGLESHOT, AveragingMode.CYCLIC])
-@pytest.mark.parametrize("acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION])
+@pytest.mark.parametrize(
+    "acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION]
+)
 @pytest.mark.parametrize("nshots", [10, 20])
 def test_dummy_double_sweep(name, parameter1, parameter2, average, acquisition, nshots):
     platform = create_platform(name)
@@ -277,13 +309,19 @@ def test_dummy_double_sweep(name, parameter1, parameter2, average, acquisition, 
             else results[pulse.qubit].samples.shape
         )
 
-    assert results_shape == (SWEPT_POINTS, SWEPT_POINTS) if average else (nshots, SWEPT_POINTS, SWEPT_POINTS)
+    assert (
+        results_shape == (SWEPT_POINTS, SWEPT_POINTS)
+        if average
+        else (nshots, SWEPT_POINTS, SWEPT_POINTS)
+    )
 
 
 @pytest.mark.parametrize("name", PLATFORM_NAMES)
 @pytest.mark.parametrize("parameter", Parameter)
 @pytest.mark.parametrize("average", [AveragingMode.SINGLESHOT, AveragingMode.CYCLIC])
-@pytest.mark.parametrize("acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION])
+@pytest.mark.parametrize(
+    "acquisition", [AcquisitionType.INTEGRATION, AcquisitionType.DISCRIMINATION]
+)
 @pytest.mark.parametrize("nshots", [10, 20])
 def test_dummy_single_sweep_multiplex(name, parameter, average, acquisition, nshots):
     platform = create_platform(name)
@@ -299,9 +337,17 @@ def test_dummy_single_sweep_multiplex(name, parameter, average, acquisition, nsh
     )
 
     if parameter in QubitParameter:
-        sweeper1 = Sweeper(parameter, parameter_range, qubits=[platform.qubits[qubit] for qubit in platform.qubits])
+        sweeper1 = Sweeper(
+            parameter,
+            parameter_range,
+            qubits=[platform.qubits[qubit] for qubit in platform.qubits],
+        )
     else:
-        sweeper1 = Sweeper(parameter, parameter_range, pulses=[ro_pulses[qubit] for qubit in platform.qubits])
+        sweeper1 = Sweeper(
+            parameter,
+            parameter_range,
+            pulses=[ro_pulses[qubit] for qubit in platform.qubits],
+        )
 
     options = ExecutionParameters(
         nshots=nshots,

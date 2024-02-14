@@ -1,20 +1,22 @@
 # Qibolab
 
-![Tests](https://github.com/qiboteam/qibolab/workflows/Tests/badge.svg)
 [![codecov](https://codecov.io/gh/qiboteam/qibolab/branch/main/graph/badge.svg?token=11UENAPBPH)](https://codecov.io/gh/qiboteam/qibolab)
-[![DOI](https://zenodo.org/badge/241307936.svg)](https://zenodo.org/badge/latestdoi/241307936)
+![PyPI - Version](https://img.shields.io/pypi/v/qibolab)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/qibolab)
 
 Qibolab is the dedicated [Qibo](https://github.com/qiboteam/qibo) backend for
 the automatic deployment of quantum circuits on quantum hardware.
 
 Some of the key features of Qibolab are:
 
-* Deploy Qibo models on quantum hardware easily.
-* Create custom experimental drivers for custom lab setup.
-* Support multiple heterogeneous platforms.
-* Use existing calibration procedures for experimentalists.
+- Deploy Qibo models on quantum hardware easily.
+- Create custom experimental drivers for custom lab setup.
+- Support multiple heterogeneous platforms.
+- Use existing calibration procedures for experimentalists.
 
 ## Documentation
+
+[![docs](https://github.com/qiboteam/qibolab/actions/workflows/publish.yml/badge.svg)](https://qibo.science/qibolab/stable/)
 
 The qibolab backend documentation is available at [https://qibo.science/qibolab/stable/](https://qibo.science/qibolab/stable/).
 
@@ -58,10 +60,6 @@ platform = create_platform("my_platform")
 
 # Connects to lab instruments using the details specified in the calibration settings.
 platform.connect()
-# Configures instruments using the loaded calibration settings.
-platform.setup()
-# Turns on the local oscillators
-platform.start()
 
 # Execute a pulse sequence
 options = ExecutionParameters(nshots=1000)
@@ -70,8 +68,6 @@ results = platform.execute_pulse_sequence(sequence, options)
 # Print the acquired shots
 print(results.samples)
 
-# Turn off lab instruments
-platform.stop()
 # Disconnect from the instruments
 platform.disconnect()
 ```
@@ -105,5 +101,8 @@ for _ in range(5):
 ```
 
 ## Citation policy
+
+[![arXiv](https://img.shields.io/badge/arXiv-2308.06313-b31b1b.svg)](https://arxiv.org/abs/2308.06313)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10572987.svg)](https://doi.org/10.5281/zenodo.10572987)
 
 If you use the package please refer to [the documentation](https://qibo.science/qibo/stable/appendix/citing-qibo.html#publications) for citation instructions.

@@ -1,7 +1,7 @@
 import pathlib
 
 from qibolab.channels import Channel, ChannelMap
-from qibolab.instruments.oscillator import LocalOscillator
+from qibolab.instruments.dummy import DummyLocalOscillator as LocalOscillator
 from qibolab.instruments.qm import QMSim
 from qibolab.platform import Platform
 from qibolab.serialize import (
@@ -11,31 +11,41 @@ from qibolab.serialize import (
     load_settings,
 )
 
-RUNCARD = pathlib.Path(__file__).parent / "qm.yml"
+FOLDER = pathlib.Path(__file__).parent
 
 
-def create(runcard_path=RUNCARD):
-    """Dummy platform using Quantum Machines (QM) OPXs and Rohde Schwarz local oscillators.
+def create(folder: pathlib.Path = FOLDER):
+    """Dummy platform using Quantum Machines (QM) OPXs and Rohde Schwarz local
+    oscillators.
 
     Based on QuantWare 5-qubit device.
 
     Used in ``test_instruments_qm.py`` and ``test_instruments_qmsim.py``
     """
-    controller = QMSim("qmopx", "0.0.0.0:0", simulation_duration=1000, cloud=False, time_of_flight=280)
+    controller = QMSim(
+        "qmopx", "0.0.0.0:0", simulation_duration=1000, cloud=False, time_of_flight=280
+    )
 
     # Create channel objects and map controllers to channels
     channels = ChannelMap()
     # readout
-    channels |= Channel("L3-25_a", port=controller[(("con1", 10), ("con1", 9))])
-    channels |= Channel("L3-25_b", port=controller[(("con2", 10), ("con2", 9))])
+    channels |= Channel("L3-25_a", port=controller.ports((("con1", 10), ("con1", 9))))
+    channels |= Channel("L3-25_b", port=controller.ports((("con2", 10), ("con2", 9))))
     # feedback
-    channels |= Channel("L2-5_a", port=controller[(("con1", 2), ("con1", 1))])
-    channels |= Channel("L2-5_b", port=controller[(("con2", 2), ("con2", 1))])
+    channels |= Channel("L2-5_a", port=controller.ports((("con1", 2), ("con1", 1))))
+    channels |= Channel("L2-5_b", port=controller.ports((("con2", 2), ("con2", 1))))
     # drive
-    channels |= (Channel(f"L3-1{i}", port=controller[(("con1", 2 * i), ("con1", 2 * i - 1))]) for i in range(1, 5))
-    channels |= Channel("L3-15", port=controller[(("con3", 2), ("con3", 1))])
+    channels |= (
+        Channel(
+            f"L3-1{i}", port=controller.ports((("con1", 2 * i), ("con1", 2 * i - 1)))
+        )
+        for i in range(1, 5)
+    )
+    channels |= Channel("L3-15", port=controller.ports((("con3", 2), ("con3", 1))))
     # flux
-    channels |= (Channel(f"L4-{i}", port=controller[(("con2", i),)]) for i in range(1, 6))
+    channels |= (
+        Channel(f"L4-{i}", port=controller.ports((("con2", i),))) for i in range(1, 6)
+    )
     # TWPA
     channels |= "L4-26"
 
@@ -59,7 +69,7 @@ def create(runcard_path=RUNCARD):
     channels["L4-26"].local_oscillator = local_oscillators[5]
 
     # create qubit objects
-    runcard = load_runcard(runcard_path)
+    runcard = load_runcard(folder)
     qubits, couplers, pairs = load_qubits(runcard)
 
     # assign channels to qubits
@@ -77,7 +87,10 @@ def create(runcard_path=RUNCARD):
         qubits[q].flux = channels[f"L4-{q}"]
 
     # set filter for flux channel
-    qubits[2].flux.filters = {"feedforward": [1.0684635881381783, -1.0163217174522334], "feedback": [0.947858129314055]}
+    qubits[2].flux.filters = {
+        "feedforward": [1.0684635881381783, -1.0163217174522334],
+        "feedback": [0.947858129314055],
+    }
 
     # set maximum allowed bias values to protect amplifier
     # relevant only for qubits where an amplifier is used
@@ -88,4 +101,6 @@ def create(runcard_path=RUNCARD):
     instruments.update({lo.name: lo for lo in local_oscillators})
     settings = load_settings(runcard)
     instruments = load_instrument_settings(runcard, instruments)
-    return Platform("qm", qubits, pairs, instruments, settings, resonator_type="2D")
+    return Platform(
+        str(FOLDER), qubits, pairs, instruments, settings, resonator_type="2D"
+    )

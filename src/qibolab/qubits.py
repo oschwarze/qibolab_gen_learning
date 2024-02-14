@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field, fields
-from pathlib import Path
 from typing import List, Optional, Tuple, Union
+
+import numpy as np
 
 from qibolab.channels import Channel
 from qibolab.couplers import Coupler
@@ -11,10 +12,12 @@ QubitId = Union[str, int]
 
 CHANNEL_NAMES = ("readout", "feedback", "drive", "flux", "twpa")
 """Names of channels that belong to a qubit.
+
 Not all channels are required to operate a qubit.
 """
-EXCLUDED_FIELDS = CHANNEL_NAMES + ("name", "native_gates")
-"""Qubit dataclass fields that are excluded by the ``characterization`` property."""
+EXCLUDED_FIELDS = CHANNEL_NAMES + ("name", "native_gates", "kernel", "_flux")
+"""Qubit dataclass fields that are excluded by the ``characterization``
+property."""
 
 
 @dataclass
@@ -41,22 +44,19 @@ class Qubit:
 
     bare_resonator_frequency: int = 0
     readout_frequency: int = 0
-    """ Readout dressed frequency"""
+    """Readout dressed frequency."""
     drive_frequency: int = 0
     anharmonicity: int = 0
     sweetspot: float = 0.0
-    flux_to_bias: float = 0.0
     asymmetry: float = 0.0
-    bare_resonator_frequency_sweetspot: float = 0.0
-    """Bare resonator frequency at sweetspot"""
-    ssf_brf: float = 0.0
-    """Estimated sweetspot qubit frequency divided by the bare_resonator_frequency"""
+    crosstalk_matrix: dict[QubitId, float] = field(default_factory=dict)
+    """Crosstalk matrix for voltages."""
     Ec: float = 0.0
-    """Readout Charge Energy"""
+    """Readout Charge Energy."""
     Ej: float = 0.0
-    """Readout Josephson Energy"""
+    """Readout Josephson Energy."""
     g: float = 0.0
-    """Readout coupling"""
+    """Readout coupling."""
     assignment_fidelity: float = 0.0
     """Assignment fidelity."""
     readout_fidelity: float = 0.0
@@ -76,7 +76,7 @@ class Qubit:
     # parameters for single shot classification
     threshold: Optional[float] = None
     iq_angle: float = 0.0
-    kernel_path: Optional[Path] = None
+    kernel: Optional[np.ndarray] = field(default=None, repr=False)
     # required for mixers (not sure if it should be here)
     mixer_drive_g: float = 0.0
     mixer_drive_phi: float = 0.0
@@ -87,9 +87,23 @@ class Qubit:
     feedback: Optional[Channel] = None
     twpa: Optional[Channel] = None
     drive: Optional[Channel] = None
-    flux: Optional[Channel] = None
+    _flux: Optional[Channel] = None
 
     native_gates: SingleQubitNatives = field(default_factory=SingleQubitNatives)
+
+    def __post_init__(self):
+        if self.flux is not None and self.sweetspot != 0:
+            self.flux.offset = self.sweetspot
+
+    @property
+    def flux(self):
+        return self._flux
+
+    @flux.setter
+    def flux(self, channel):
+        if self.sweetspot != 0:
+            channel.offset = self.sweetspot
+        self._flux = channel
 
     @property
     def channels(self):
@@ -101,7 +115,11 @@ class Qubit:
     @property
     def characterization(self):
         """Dictionary containing characterization parameters."""
-        return {fld.name: getattr(self, fld.name) for fld in fields(self) if fld.name not in EXCLUDED_FIELDS}
+        return {
+            fld.name: getattr(self, fld.name)
+            for fld in fields(self)
+            if fld.name not in EXCLUDED_FIELDS
+        }
 
 
 QubitPairId = Tuple[QubitId, QubitId]
@@ -110,17 +128,23 @@ QubitPairId = Tuple[QubitId, QubitId]
 
 @dataclass
 class QubitPair:
-    """Data structure for holding the native two-qubit gates acting on a pair of qubits.
+    """Data structure for holding the native two-qubit gates acting on a pair
+    of qubits.
 
     This is needed for symmetry to the single-qubit gates which are storred in the
     :class:`qibolab.platforms.abstract.Qubit`.
-
-    Qubits are sorted according to ``qubit.name`` such that
-    ``qubit1.name < qubit2.name``.
     """
 
     qubit1: Qubit
+    """First qubit of the pair.
+
+    Acts as control on two-qubit gates.
+    """
     qubit2: Qubit
+    """Second qubit of the pair.
+
+    Acts as target on two-qubit gates.
+    """
 
     coupler: Optional[Coupler] = None
 

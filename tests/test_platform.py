@@ -1,7 +1,6 @@
 """Tests :class:`qibolab.platforms.multiqubit.MultiqubitPlatform` and
-:class:`qibolab.platforms.platform.DesignPlatform`.
-"""
-import os
+:class:`qibolab.platforms.platform.DesignPlatform`."""
+
 import pathlib
 import pickle
 import warnings
@@ -9,15 +8,25 @@ import warnings
 import numpy as np
 import pytest
 from qibo.models import Circuit
+from qibo.result import CircuitResult
 
 from qibolab import create_platform
 from qibolab.backends import QibolabBackend
+from qibolab.dummy import create_dummy
+from qibolab.dummy.platform import FOLDER
 from qibolab.execution_parameters import ExecutionParameters
 from qibolab.instruments.qblox.controller import QbloxController
 from qibolab.instruments.rfsoc.driver import RFSoC
+from qibolab.kernels import Kernels
 from qibolab.platform import Platform, unroll_sequences
 from qibolab.pulses import PulseSequence, Rectangular
-from qibolab.serialize import dump_runcard, load_runcard
+from qibolab.serialize import (
+    dump_kernels,
+    dump_platform,
+    dump_runcard,
+    load_runcard,
+    load_settings,
+)
 
 from .conftest import find_instrument
 
@@ -48,6 +57,10 @@ def test_create_platform_error():
         platform = create_platform("nonexistent")
 
 
+def test_platform_sampling_rate(platform):
+    assert platform.sampling_rate >= 1
+
+
 @pytest.mark.xfail(reason="Cannot pickle all platforms")
 def test_platform_pickle(platform):
     serial = pickle.dumps(platform)
@@ -56,12 +69,14 @@ def test_platform_pickle(platform):
     assert new_platform.is_connected == platform.is_connected
 
 
-def test_dump_runcard(platform):
-    path = pathlib.Path(__file__).parent / "test.yml"
-    dump_runcard(platform, path)
-    final_runcard = load_runcard(path)
-    target_path = pathlib.Path(__file__).parent / "dummy_qrc" / f"{platform.name}.yml"
-    target_runcard = load_runcard(target_path)
+def test_dump_runcard(platform, tmp_path):
+    dump_runcard(platform, tmp_path)
+    final_runcard = load_runcard(tmp_path)
+    if platform.name == "dummy" or platform.name == "dummy_couplers":
+        target_runcard = load_runcard(FOLDER)
+    else:
+        target_path = pathlib.Path(__file__).parent / "dummy_qrc" / f"{platform.name}"
+        target_runcard = load_runcard(target_path)
     # for the characterization section the dumped runcard may contain
     # some default ``Qubit`` parameters
     target_char = target_runcard.pop("characterization")["single_qubit"]
@@ -74,21 +89,52 @@ def test_dump_runcard(platform):
     target_instruments = target_runcard.pop("instruments")
     final_instruments = final_runcard.pop("instruments")
     assert final_instruments == target_instruments
-    os.remove(path)
+
+
+@pytest.mark.parametrize("has_kernels", [False, True])
+def test_kernels(tmp_path, has_kernels):
+    """Test dumping and loading of `Kernels`."""
+
+    platform = create_dummy()
+    if has_kernels:
+        for qubit in platform.qubits:
+            platform.qubits[qubit].kernel = np.random.rand(10)
+
+    dump_kernels(platform, tmp_path)
+
+    if has_kernels:
+        kernels = Kernels.load(tmp_path)
+        for qubit in platform.qubits:
+            np.testing.assert_array_equal(platform.qubits[qubit].kernel, kernels[qubit])
+    else:
+        with pytest.raises(FileNotFoundError):
+            Kernels.load(tmp_path)
+
+
+@pytest.mark.parametrize("has_kernels", [False, True])
+def test_dump_platform(tmp_path, has_kernels):
+    """Test platform dump and loading runcard and kernels."""
+
+    platform = create_dummy()
+    if has_kernels:
+        for qubit in platform.qubits:
+            platform.qubits[qubit].kernel = np.random.rand(10)
+
+    dump_platform(platform, tmp_path)
+
+    settings = load_settings(load_runcard(tmp_path))
+    if has_kernels:
+        kernels = Kernels.load(tmp_path)
+        for qubit in platform.qubits:
+            np.testing.assert_array_equal(platform.qubits[qubit].kernel, kernels[qubit])
+
+    assert settings == platform.settings
 
 
 @pytest.fixture(scope="module")
 def qpu_platform(connected_platform):
     connected_platform.connect()
-    connected_platform.setup()
-    connected_platform.start()
     yield connected_platform
-    connected_platform.stop()
-
-
-@pytest.mark.qpu
-def test_platform_setup_start_stop(qpu_platform):
-    pass
 
 
 @pytest.mark.qpu
@@ -117,9 +163,25 @@ def test_platform_execute_one_coupler_pulse(qpu_platform):
         pytest.skip("The platform does not have couplers")
     coupler = next(iter(platform.couplers))
     sequence = PulseSequence()
-    sequence.add(platform.create_coupler_pulse(coupler, start=0, duration=200, amplitude=1))
+    sequence.add(
+        platform.create_coupler_pulse(coupler, start=0, duration=200, amplitude=1)
+    )
     platform.execute_pulse_sequence(sequence, ExecutionParameters(nshots=nshots))
     assert len(sequence.cf_pulses) > 0
+
+
+@pytest.mark.qpu
+def test_platform_execute_one_flux_pulse(qpu_platform):
+    # One flux pulse
+    platform = qpu_platform
+    qubit = next(iter(platform.qubits))
+    sequence = PulseSequence()
+    sequence.add(
+        platform.create_qubit_flux_pulse(qubit, start=0, duration=200, amplitude=1)
+    )
+    platform.execute_pulse_sequence(sequence, ExecutionParameters(nshots=nshots))
+    assert len(sequence.qf_pulses) == 1
+    assert len(sequence) == 1
 
 
 @pytest.mark.qpu
@@ -134,7 +196,9 @@ def test_platform_execute_one_long_drive_pulse(qpu_platform):
     if find_instrument(platform, QbloxController) is not None:
         with pytest.raises(NotImplementedError):
             platform.execute_pulse_sequence(sequence, options)
-    elif find_instrument(platform, RFSoC) is not None and not isinstance(pulse.shape, Rectangular):
+    elif find_instrument(platform, RFSoC) is not None and not isinstance(
+        pulse.shape, Rectangular
+    ):
         with pytest.raises(RuntimeError):
             platform.execute_pulse_sequence(sequence, options)
     else:
@@ -153,7 +217,9 @@ def test_platform_execute_one_extralong_drive_pulse(qpu_platform):
     if find_instrument(platform, QbloxController) is not None:
         with pytest.raises(NotImplementedError):
             platform.execute_pulse_sequence(sequence, options)
-    elif find_instrument(platform, RFSoC) is not None and not isinstance(pulse.shape, Rectangular):
+    elif find_instrument(platform, RFSoC) is not None and not isinstance(
+        pulse.shape, Rectangular
+    ):
         with pytest.raises(RuntimeError):
             platform.execute_pulse_sequence(sequence, options)
     else:
@@ -222,8 +288,12 @@ def test_platform_execute_multiple_readout_pulses(qpu_platform):
     sequence = PulseSequence()
     qd_pulse1 = platform.create_qubit_drive_pulse(qubit, start=0, duration=200)
     ro_pulse1 = platform.create_qubit_readout_pulse(qubit, start=200)
-    qd_pulse2 = platform.create_qubit_drive_pulse(qubit, start=(ro_pulse1.start + ro_pulse1.duration), duration=400)
-    ro_pulse2 = platform.create_qubit_readout_pulse(qubit, start=(ro_pulse1.start + ro_pulse1.duration + 400))
+    qd_pulse2 = platform.create_qubit_drive_pulse(
+        qubit, start=(ro_pulse1.start + ro_pulse1.duration), duration=400
+    )
+    ro_pulse2 = platform.create_qubit_readout_pulse(
+        qubit, start=(ro_pulse1.start + ro_pulse1.duration + 400)
+    )
     sequence.add(qd_pulse1)
     sequence.add(ro_pulse1)
     sequence.add(qd_pulse2)
@@ -233,7 +303,9 @@ def test_platform_execute_multiple_readout_pulses(qpu_platform):
 
 @pytest.mark.skip(reason="no way of currently testing this")
 @pytest.mark.qpu
-@pytest.mark.xfail(raises=AssertionError, reason="Probabilities are not well calibrated")
+@pytest.mark.xfail(
+    raises=AssertionError, reason="Probabilities are not well calibrated"
+)
 def test_excited_state_probabilities_pulses(qpu_platform):
     platform = qpu_platform
     qubits = [q for q, qb in platform.qubits.items() if qb.drive is not None]
@@ -248,7 +320,9 @@ def test_excited_state_probabilities_pulses(qpu_platform):
 
     nqubits = len(qubits)
     cr = CircuitResult(backend, Circuit(nqubits), result, nshots=5000)
-    probs = [backend.circuit_result_probabilities(cr, qubits=[qubit]) for qubit in qubits]
+    probs = [
+        backend.circuit_result_probabilities(cr, qubits=[qubit]) for qubit in qubits
+    ]
     warnings.warn(f"Excited state probabilities: {probs}")
     target_probs = np.zeros((nqubits, 2))
     target_probs[:, 1] = 1
@@ -258,7 +332,9 @@ def test_excited_state_probabilities_pulses(qpu_platform):
 @pytest.mark.skip(reason="no way of currently testing this")
 @pytest.mark.qpu
 @pytest.mark.parametrize("start_zero", [False, True])
-@pytest.mark.xfail(raises=AssertionError, reason="Probabilities are not well calibrated")
+@pytest.mark.xfail(
+    raises=AssertionError, reason="Probabilities are not well calibrated"
+)
 def test_ground_state_probabilities_pulses(qpu_platform, start_zero):
     platform = qpu_platform
     qubits = [q for q, qb in platform.qubits.items() if qb.drive is not None]
@@ -275,7 +351,9 @@ def test_ground_state_probabilities_pulses(qpu_platform, start_zero):
 
     nqubits = len(qubits)
     cr = CircuitResult(backend, Circuit(nqubits), result, nshots=5000)
-    probs = [backend.circuit_result_probabilities(cr, qubits=[qubit]) for qubit in qubits]
+    probs = [
+        backend.circuit_result_probabilities(cr, qubits=[qubit]) for qubit in qubits
+    ]
     warnings.warn(f"Ground state probabilities: {probs}")
     target_probs = np.zeros((nqubits, 2))
     target_probs[:, 0] = 1
