@@ -90,6 +90,9 @@ class Controller(Instrument):
             the acquired :class:`qibolab.result.ExecutionResults` object.
         """
 
+    def play_sequences(self, *args, **kwargs):
+        raise NotImplementedError
+
     def split_batches(self, sequences):  # pragma: no cover
         """Split sequences to batches each of which can be unrolled and played
         as a single sequence.

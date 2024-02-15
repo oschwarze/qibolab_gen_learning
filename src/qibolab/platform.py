@@ -238,12 +238,18 @@ class Platform:
             for pulse in sequence.ro_pulses
         }
 
-        results = defaultdict(list)
-        for batch in self._controller.split_batches(sequences):
-            sequence, readouts = unroll_sequences(batch, options.relaxation_time)
-            result = self._execute(sequence, options, **kwargs)
-            for serial, new_serials in readouts.items():
-                results[serial].extend(result[ser] for ser in new_serials)
+        try:
+            results = self._controller.play_sequences(
+                self.qubits, self.couplers, sequences, options
+            )
+
+        except NotImplementedError:
+            results = defaultdict(list)
+            for batch in self._controller.split_batches(sequences):
+                sequence, readouts = unroll_sequences(batch, options.relaxation_time)
+                result = self._execute(sequence, options, **kwargs)
+                for serial, new_serials in readouts.items():
+                    results[serial].extend(result[ser] for ser in new_serials)
 
         for serial, qubit in ro_pulses.items():
             results[qubit] = results[serial]
