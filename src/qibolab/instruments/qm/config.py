@@ -1,28 +1,22 @@
 import math
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 from qibo.config import raise_error
 
-from qibolab.instruments.port import Port
 from qibolab.pulses import PulseType, Rectangular
 
-PortId = Tuple[str, int]
-"""Type for port definition, for example: ("con1", 2)."""
-IQPortId = Union[Tuple[PortId], Tuple[PortId, PortId]]
-"""Type for collections of IQ ports."""
+from .ports import OPXIQ, OctaveInput, OctaveOutput
 
 SAMPLING_RATE = 1
 """Sampling rate of Quantum Machines OPX in GSps."""
 
+DEFAULT_INPUTS = {1: {}, 2: {}}
+"""Default controller config section.
 
-@dataclass
-class QMPort(Port):
-    name: IQPortId
-    offset: float = 0.0
-    gain: int = 0
-    filters: Optional[Dict[str, float]] = None
+Inputs are always registered to avoid issues with automatic mixer
+calibration when using Octaves.
+"""
 
 
 @dataclass
@@ -31,6 +25,7 @@ class QMConfig:
 
     version: int = 1
     controllers: dict = field(default_factory=dict)
+    octaves: dict = field(default_factory=dict)
     elements: dict = field(default_factory=dict)
     pulses: dict = field(default_factory=dict)
     waveforms: dict = field(default_factory=dict)
@@ -40,24 +35,33 @@ class QMConfig:
     integration_weights: dict = field(default_factory=dict)
     mixers: dict = field(default_factory=dict)
 
-    def register_analog_output_controllers(self, port: QMPort):
-        """Register controllers in the ``config``.
+    def register_port(self, port):
+        """Register controllers and octaves sections in the ``config``.
 
         Args:
             ports (QMPort): Port we are registering.
                 Contains information about the controller and port number and
-                some parameters (offset, gain, filter, etc.).
+                some parameters, such as offset, gain, filter, etc.).
         """
-        for con, port_number in port.name:
-            if con not in self.controllers:
-                self.controllers[con] = {"analog_outputs": {}}
-            self.controllers[con]["analog_outputs"][port_number] = {
-                "offset": port.offset
-            }
-            if port.filters is not None:
-                self.controllers[con]["analog_outputs"][port_number][
-                    "filter"
-                ] = port.filters
+        if isinstance(port, OPXIQ):
+            self.register_port(port.i)
+            self.register_port(port.q)
+        else:
+            is_octave = isinstance(port, (OctaveOutput, OctaveInput))
+            controllers = self.octaves if is_octave else self.controllers
+            if port.device not in controllers:
+                controllers[port.device] = {}
+                if not is_octave:
+                    controllers[port.device]["analog_inputs"] = DEFAULT_INPUTS
+
+            device = controllers[port.device]
+            if port.key in device:
+                device[port.key].update(port.config)
+            else:
+                device[port.key] = port.config
+            if is_octave:
+                device["connectivity"] = port.opx_port.i.device
+                self.register_port(port.opx_port)
 
     @staticmethod
     def iq_imbalance(g, phi):
@@ -90,29 +94,35 @@ class QMConfig:
                 LO connected to the same channel.
         """
         if f"drive{qubit.name}" not in self.elements:
-            # register drive controllers
-            self.register_analog_output_controllers(qubit.drive.port)
-            # register element
-            lo_frequency = math.floor(qubit.drive.local_oscillator.frequency)
-            self.elements[f"drive{qubit.name}"] = {
-                "mixInputs": {
-                    "I": qubit.drive.port.name[0],
-                    "Q": qubit.drive.port.name[1],
-                    "lo_frequency": lo_frequency,
-                    "mixer": f"mixer_drive{qubit.name}",
-                },
-                "intermediate_frequency": intermediate_frequency,
-                "operations": {},
-            }
-            drive_g = qubit.mixer_drive_g
-            drive_phi = qubit.mixer_drive_phi
-            self.mixers[f"mixer_drive{qubit.name}"] = [
+            if isinstance(qubit.drive.port, OPXIQ):
+                lo_frequency = math.floor(qubit.drive.lo_frequency)
+                self.elements[f"drive{qubit.name}"] = {
+                    "mixInputs": {
+                        "I": qubit.drive.port.i.pair,
+                        "Q": qubit.drive.port.q.pair,
+                        "lo_frequency": lo_frequency,
+                        "mixer": f"mixer_drive{qubit.name}",
+                    },
+                }
+                drive_g = qubit.mixer_drive_g
+                drive_phi = qubit.mixer_drive_phi
+                self.mixers[f"mixer_drive{qubit.name}"] = [
+                    {
+                        "intermediate_frequency": intermediate_frequency,
+                        "lo_frequency": lo_frequency,
+                        "correction": self.iq_imbalance(drive_g, drive_phi),
+                    }
+                ]
+            else:
+                self.elements[f"drive{qubit.name}"] = {
+                    "RF_inputs": {"port": qubit.drive.port.pair},
+                }
+            self.elements[f"drive{qubit.name}"].update(
                 {
                     "intermediate_frequency": intermediate_frequency,
-                    "lo_frequency": lo_frequency,
-                    "correction": self.iq_imbalance(drive_g, drive_phi),
+                    "operations": {},
                 }
-            ]
+            )
         else:
             self.elements[f"drive{qubit.name}"][
                 "intermediate_frequency"
@@ -133,56 +143,42 @@ class QMConfig:
                 LO connected to the same channel.
         """
         if f"readout{qubit.name}" not in self.elements:
-            # register readout controllers
-            self.register_analog_output_controllers(qubit.readout.port)
-            # register feedback controllers
-            controllers = self.controllers
-            for con, port_number in qubit.feedback.port.name:
-                if con not in controllers:
-                    controllers[con] = {
-                        "analog_outputs": {},
-                        "digital_outputs": {
-                            1: {},
-                        },
-                        "analog_inputs": {},
-                    }
-                if "digital_outputs" not in controllers[con]:
-                    controllers[con]["digital_outputs"] = {
-                        1: {},
-                    }
-                if "analog_inputs" not in controllers[con]:
-                    controllers[con]["analog_inputs"] = {}
-                controllers[con]["analog_inputs"][port_number] = {
-                    "offset": 0.0,
-                    "gain_db": qubit.feedback.port.gain,
+            if isinstance(qubit.readout.port, OPXIQ):
+                lo_frequency = math.floor(qubit.readout.lo_frequency)
+                self.elements[f"readout{qubit.name}"] = {
+                    "mixInputs": {
+                        "I": qubit.readout.port.i.pair,
+                        "Q": qubit.readout.port.q.pair,
+                        "lo_frequency": lo_frequency,
+                        "mixer": f"mixer_readout{qubit.name}",
+                    },
+                    "outputs": {
+                        "out1": qubit.feedback.port.i.pair,
+                        "out2": qubit.feedback.port.q.pair,
+                    },
                 }
-            # register element
-            lo_frequency = math.floor(qubit.readout.local_oscillator.frequency)
-            self.elements[f"readout{qubit.name}"] = {
-                "mixInputs": {
-                    "I": qubit.readout.port.name[0],
-                    "Q": qubit.readout.port.name[1],
-                    "lo_frequency": lo_frequency,
-                    "mixer": f"mixer_readout{qubit.name}",
-                },
-                "intermediate_frequency": intermediate_frequency,
-                "operations": {},
-                "outputs": {
-                    "out1": qubit.feedback.port.name[0],
-                    "out2": qubit.feedback.port.name[1],
-                },
-                "time_of_flight": time_of_flight,
-                "smearing": smearing,
-            }
-            readout_g = qubit.mixer_readout_g
-            readout_phi = qubit.mixer_readout_phi
-            self.mixers[f"mixer_readout{qubit.name}"] = [
+                readout_g = qubit.mixer_readout_g
+                readout_phi = qubit.mixer_readout_phi
+                self.mixers[f"mixer_readout{qubit.name}"] = [
+                    {
+                        "intermediate_frequency": intermediate_frequency,
+                        "lo_frequency": lo_frequency,
+                        "correction": self.iq_imbalance(readout_g, readout_phi),
+                    }
+                ]
+            else:
+                self.elements[f"readout{qubit.name}"] = {
+                    "RF_inputs": {"port": qubit.readout.port.pair},
+                    "RF_outputs": {"port": qubit.feedback.port.pair},
+                }
+            self.elements[f"readout{qubit.name}"].update(
                 {
                     "intermediate_frequency": intermediate_frequency,
-                    "lo_frequency": lo_frequency,
-                    "correction": self.iq_imbalance(readout_g, readout_phi),
+                    "operations": {},
+                    "time_of_flight": time_of_flight,
+                    "smearing": smearing,
                 }
-            ]
+            )
         else:
             self.elements[f"readout{qubit.name}"][
                 "intermediate_frequency"
@@ -201,12 +197,9 @@ class QMConfig:
                 LO connected to the same channel.
         """
         if f"flux{qubit.name}" not in self.elements:
-            # register controller
-            self.register_analog_output_controllers(qubit.flux.port)
-            # register element
             self.elements[f"flux{qubit.name}"] = {
                 "singleInput": {
-                    "port": qubit.flux.port.name[0],
+                    "port": qubit.flux.port.pair,
                 },
                 "intermediate_frequency": intermediate_frequency,
                 "operations": {},
@@ -219,18 +212,14 @@ class QMConfig:
     def register_element(self, qubit, pulse, time_of_flight=0, smearing=0):
         if pulse.type is PulseType.DRIVE:
             # register drive element
-            if_frequency = pulse.frequency - math.floor(
-                qubit.drive.local_oscillator.frequency
-            )
+            if_frequency = pulse.frequency - math.floor(qubit.drive.lo_frequency)
             self.register_drive_element(qubit, if_frequency)
             # register flux element (if available)
             if qubit.flux:
                 self.register_flux_element(qubit)
         elif pulse.type is PulseType.READOUT:
             # register readout element (if it does not already exist)
-            if_frequency = pulse.frequency - math.floor(
-                qubit.readout.local_oscillator.frequency
-            )
+            if_frequency = pulse.frequency - math.floor(qubit.readout.lo_frequency)
             self.register_readout_element(qubit, if_frequency, time_of_flight, smearing)
             # register flux element (if available)
             if qubit.flux:
