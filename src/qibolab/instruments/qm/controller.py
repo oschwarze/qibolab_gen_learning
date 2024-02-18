@@ -134,6 +134,7 @@ class QMController(Controller):
 
     If ``None`` the program will not be dumped.
     """
+    batch_len: int = 10000
 
     manager: Optional[QuantumMachinesManager] = None
     """Manager object used for controlling the Quantum Machines cluster."""
@@ -380,38 +381,43 @@ class QMController(Controller):
                 self.config.register_port(qubit.flux.port)
                 self.config.register_flux_element(qubit)
 
-        batch = UnrollingBatch()
+        batches = [UnrollingBatch()]
         for sequence in sequences:
             qmsequence, ros = self.create_sequence(qubits, sequence, [])
-            batch.add(qmsequence, ros)
+            if len(batches[-1]) + len(qmsequence.qmpulses) > self.batch_len:
+                batches.append(UnrollingBatch())
+            batches[-1].add(qmsequence, ros)
 
         results = defaultdict(list)
 
-        experiment, acquisitions = batch.program(qubits, options)
-        assert len(acquisitions) == 1
-        acquisition = next(iter(acquisitions.values()))
+        print(f"Executing {len(batches)} batches")
+        for batch in batches:
+            experiment, acquisitions = batch.program(qubits, options)
+            assert len(acquisitions) == 1
+            acquisition = next(iter(acquisitions.values()))
 
-        if self.script_file_name is not None:
-            with open(self.script_file_name, "w") as file:
-                file.write(generate_qua_script(experiment, self.config.__dict__))
+            if self.script_file_name is not None:
+                with open(self.script_file_name, "w") as file:
+                    file.write(generate_qua_script(experiment, self.config.__dict__))
 
-        if self.simulation_duration is not None:
-            result = self.simulate_program(experiment)
-            results = {}
-            for qmpulse in batch.ro_pulses:
-                pulse = qmpulse.pulse
-                results[pulse.qubit] = results[pulse.serial] = result
-            return results
+            if self.simulation_duration is not None:
+                result = self.simulate_program(experiment)
+                results = {}
+                for qmpulse in batch.ro_pulses:
+                    pulse = qmpulse.pulse
+                    results[pulse.qubit] = results[pulse.serial] = result
+                return results
 
-        result = self.execute_program(experiment)
-        handles = result.result_handles
-        handles.wait_for_all_values()
+            result = self.execute_program(experiment)
+            handles = result.result_handles
+            handles.wait_for_all_values()
 
-        data = acquisition.fetch(handles)
-        assert len(acquisition.keys) == len(data)
-        for serial, result in zip(acquisition.keys, data):
-            results[acquisition.qubit].append(result)
-            results[serial].append(result)
+            data = acquisition.fetch(handles)
+            assert len(acquisition.keys) == len(data)
+            for serial, result in zip(acquisition.keys, data):
+                results[acquisition.qubit].append(result)
+                results[serial].append(result)
+
         return results
 
 
@@ -423,6 +429,9 @@ class UnrollingBatch:
     # ``qd_pulse`` and a single ``ro_pulse``
     qd_pulse: Optional[QMPulse] = None
     ro_pulse: Optional[QMPulse] = None
+
+    def __len__(self):
+        return len(self.phases)
 
     def add(self, qmsequence, ro_pulses):
         self.ro_pulses.extend(ro_pulses)
