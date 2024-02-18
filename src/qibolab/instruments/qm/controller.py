@@ -12,7 +12,7 @@ from qualang_tools.simulator_tools import create_simulator_controller_connection
 from qibolab import AveragingMode
 from qibolab.instruments.abstract import Controller
 from qibolab.instruments.unrolling import batch_max_sequences
-from qibolab.pulses import PulseType
+from qibolab.pulses import PulseType, ReadoutPulse
 from qibolab.sweeper import Parameter
 
 from .acquisition import declare_acquisitions, fetch_results
@@ -373,10 +373,6 @@ class QMController(Controller):
         if len(sequences) == 0:
             return {}
 
-        buffer_dims = []
-        if options.averaging_mode is AveragingMode.SINGLESHOT:
-            buffer_dims.append(options.nshots)
-
         # register flux elements for all qubits so that they are
         # always at sweetspot even when they are not used
         for qubit in qubits.values():
@@ -384,44 +380,16 @@ class QMController(Controller):
                 self.config.register_port(qubit.flux.port)
                 self.config.register_flux_element(qubit)
 
-        # assume single qubit so that there is a single
-        # ``qd_pulse`` and a single ``ro_pulse``
-        qmsequences, ro_pulses, phases = [], [], []
+        batch = UnrollingBatch()
         for sequence in sequences:
-            qmseq, ros = self.create_sequence(qubits, sequence, [])
-            ro_pulses.extend(ros)
-            for qmpulse in qmseq.qmpulses:
-                if qmpulse.pulse.type is PulseType.READOUT:
-                    phases.append(-3.0)
-                    ro_pulse = qmpulse
-                else:
-                    phase = qmpulse.pulse.relative_phase % (2 * math.pi)
-                    phases.append(phase / (2 * math.pi))
-                    qd_pulse = qmpulse
-                # phases.append(-110.0)
+            qmsequence, ros = self.create_sequence(qubits, sequence, [])
+            batch.add(qmsequence, ros)
 
-        with qua.program() as experiment:
-            n = declare(int)
-            p = declare(qua.fixed)
-            acquisitions = declare_acquisitions(ro_pulses, qubits, options)
-            with for_(n, 0, n < options.nshots, n + 1):
-                qua.align()
-                with qua.for_each_(p, phases):
-                    with qua.if_(p <= -2.0):
-                        qua.align(qd_pulse.element, ro_pulse.element)
-                        ro_pulse.acquisition.measure(
-                            ro_pulse.operation, ro_pulse.element
-                        )
-                        # assume relaxation time after every measurement
-                        qua.wait(options.relaxation_time // 4)
-                    with qua.else_():
-                        qua.frame_rotation_2pi(p, qd_pulse.element)
-                        qua.play(qd_pulse.operation, qd_pulse.element)
-                        qua.reset_frame(qd_pulse.element)
+        results = defaultdict(list)
 
-            with qua.stream_processing():
-                for acquisition in acquisitions.values():
-                    acquisition.download(*buffer_dims)
+        experiment, acquisitions = batch.program(qubits, options)
+        assert len(acquisitions) == 1
+        acquisition = next(iter(acquisitions.values()))
 
         if self.script_file_name is not None:
             with open(self.script_file_name, "w") as file:
@@ -430,17 +398,69 @@ class QMController(Controller):
         if self.simulation_duration is not None:
             result = self.simulate_program(experiment)
             results = {}
-            for qmpulse in ro_pulses:
+            for qmpulse in batch.ro_pulses:
                 pulse = qmpulse.pulse
                 results[pulse.qubit] = results[pulse.serial] = result
             return results
 
         result = self.execute_program(experiment)
         handles = result.result_handles
-        handles.wait_for_all_values()  # for async replace with ``handles.is_processing()``
+        handles.wait_for_all_values()
+
         data = acquisition.fetch(handles)
-        results = defaultdict(list)
+        assert len(acquisition.keys) == len(data)
         for serial, result in zip(acquisition.keys, data):
             results[acquisition.qubit].append(result)
             results[serial].append(result)
         return results
+
+
+@dataclass
+class UnrollingBatch:
+    ro_pulses: list[ReadoutPulse] = field(default_factory=list)
+    phases: list[float] = field(default_factory=list)
+    # assume single qubit so that there is a single
+    # ``qd_pulse`` and a single ``ro_pulse``
+    qd_pulse: Optional[QMPulse] = None
+    ro_pulse: Optional[QMPulse] = None
+
+    def add(self, qmsequence, ro_pulses):
+        self.ro_pulses.extend(ro_pulses)
+        for qmpulse in qmsequence.qmpulses:
+            if qmpulse.pulse.type is PulseType.READOUT:
+                self.phases.append(-3.0)
+                self.ro_pulse = qmpulse
+            else:
+                phase = qmpulse.pulse.relative_phase % (2 * math.pi)
+                self.phases.append(phase / (2 * math.pi))
+                self.qd_pulse = qmpulse
+            # self.phases.append(-110.0)
+
+    def program(self, qubits, options):
+        with qua.program() as experiment:
+            n = declare(int)
+            p = declare(qua.fixed)
+            acquisitions = declare_acquisitions(self.ro_pulses, qubits, options)
+            with for_(n, 0, n < options.nshots, n + 1):
+                qua.align()
+                with qua.for_each_(p, self.phases):
+                    with qua.if_(p <= -2.0):
+                        qua.align(self.qd_pulse.element, self.ro_pulse.element)
+                        self.ro_pulse.acquisition.measure(
+                            self.ro_pulse.operation, self.ro_pulse.element
+                        )
+                        # assume relaxation time after every measurement
+                        qua.wait(options.relaxation_time // 4)
+                        qua.align()
+                    with qua.else_():
+                        qua.frame_rotation_2pi(p, self.qd_pulse.element)
+                        qua.play(self.qd_pulse.operation, self.qd_pulse.element)
+                        qua.reset_frame(self.qd_pulse.element)
+
+            with qua.stream_processing():
+                for acquisition in acquisitions.values():
+                    if options.averaging_mode is AveragingMode.SINGLESHOT:
+                        acquisition.download(options.nshots)
+                    else:
+                        acquisition.download()
+        return experiment, acquisitions
