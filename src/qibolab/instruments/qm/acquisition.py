@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 from qm import qua
@@ -36,7 +36,13 @@ class Acquisition(ABC):
     qubit: QubitId
     average: bool
 
-    keys: List[str] = field(default_factory=list)
+    keys: list[str] = field(default_factory=list)
+
+    RESULT_CLS = IntegratedResults
+    """Result object type that corresponds to this acquisition type."""
+    AVERAGED_RESULT_CLS = AveragedIntegratedResults
+    """Averaged result object type that corresponds to this acquisition
+    type."""
 
     @property
     def npulses(self):
@@ -73,6 +79,13 @@ class Acquisition(ABC):
     def fetch(self):
         """Fetch downloaded streams to host device."""
 
+    def result(self, data):
+        """Creates Qibolab result object that is returned to the platform."""
+        res_cls = self.AVERAGED_RESULT_CLS if self.average else self.RESULT_CLS
+        if self.npulses > 1:
+            return [res_cls(data[..., i]) for i in range(self.npulses)]
+        return [res_cls(data)]
+
 
 @dataclass
 class RawAcquisition(Acquisition):
@@ -83,6 +96,9 @@ class RawAcquisition(Acquisition):
     )
     """Stream to collect raw ADC data."""
 
+    RESULT_CLS = RawWaveformResults
+    AVERAGED_RESULT_CLS = AveragedRawWaveformResults
+
     def assign_element(self, element):
         pass
 
@@ -90,13 +106,13 @@ class RawAcquisition(Acquisition):
         qua.measure(operation, element, self.adc_stream)
 
     def download(self, *dimensions):
-        i_stream = self.adc_stream.input1()
-        q_stream = self.adc_stream.input2()
+        istream = self.adc_stream.input1()
+        qstream = self.adc_stream.input2()
         if self.average:
-            i_stream = i_stream.average()
-            q_stream = q_stream.average()
-        i_stream.save(f"{self.name}_I")
-        q_stream.save(f"{self.name}_Q")
+            istream = istream.average()
+            qstream = qstream.average()
+        istream.save(f"{self.name}_I")
+        qstream.save(f"{self.name}_Q")
 
     def fetch(self, handles):
         ires = handles.get(f"{self.name}_I").fetch_all()
@@ -104,68 +120,56 @@ class RawAcquisition(Acquisition):
         # convert raw ADC signal to volts
         u = unit()
         signal = u.raw2volts(ires) + 1j * u.raw2volts(qres)
-        if self.average:
-            return [AveragedRawWaveformResults(signal)]
-        return [RawWaveformResults(signal)]
+        return self.result(signal)
 
 
 @dataclass
 class IntegratedAcquisition(Acquisition):
     """QUA variables used for integrated acquisition."""
 
-    I: _Variable = field(default_factory=lambda: declare(fixed))
-    Q: _Variable = field(default_factory=lambda: declare(fixed))
+    i: _Variable = field(default_factory=lambda: declare(fixed))
+    q: _Variable = field(default_factory=lambda: declare(fixed))
     """Variables to save the (I, Q) values acquired from a single shot."""
-    I_stream: _ResultSource = field(default_factory=lambda: declare_stream())
-    Q_stream: _ResultSource = field(default_factory=lambda: declare_stream())
+    istream: _ResultSource = field(default_factory=lambda: declare_stream())
+    qstream: _ResultSource = field(default_factory=lambda: declare_stream())
     """Streams to collect the results of all shots."""
 
+    RESULT_CLS = IntegratedResults
+    AVERAGED_RESULT_CLS = AveragedIntegratedResults
+
     def assign_element(self, element):
-        assign_variables_to_element(element, self.I, self.Q)
+        assign_variables_to_element(element, self.i, self.q)
 
     def measure(self, operation, element):
         qua.measure(
             operation,
             element,
             None,
-            qua.dual_demod.full("cos", "out1", "sin", "out2", self.I),
-            qua.dual_demod.full("minus_sin", "out1", "cos", "out2", self.Q),
+            qua.dual_demod.full("cos", "out1", "sin", "out2", self.i),
+            qua.dual_demod.full("minus_sin", "out1", "cos", "out2", self.q),
         )
-        qua.save(self.I, self.I_stream)
-        qua.save(self.Q, self.Q_stream)
+        qua.save(self.i, self.istream)
+        qua.save(self.q, self.qstream)
 
     def download(self, *dimensions):
-        Istream = self.I_stream
-        Qstream = self.Q_stream
+        istream = self.istream
+        qstream = self.qstream
         if self.npulses > 1:
-            Istream = Istream.buffer(self.npulses)
-            Qstream = Qstream.buffer(self.npulses)
+            istream = istream.buffer(self.npulses)
+            qstream = qstream.buffer(self.npulses)
         for dim in dimensions:
-            Istream = Istream.buffer(dim)
-            Qstream = Qstream.buffer(dim)
+            istream = istream.buffer(dim)
+            qstream = qstream.buffer(dim)
         if self.average:
-            Istream = Istream.average()
-            Qstream = Qstream.average()
-        Istream.save(f"{self.name}_I")
-        Qstream.save(f"{self.name}_Q")
+            istream = istream.average()
+            qstream = qstream.average()
+        istream.save(f"{self.name}_I")
+        qstream.save(f"{self.name}_Q")
 
     def fetch(self, handles):
         ires = handles.get(f"{self.name}_I").fetch_all()
         qres = handles.get(f"{self.name}_Q").fetch_all()
-        signal = ires + 1j * qres
-        if self.npulses > 1:
-            if self.average:
-                # TODO: calculate std
-                return [
-                    AveragedIntegratedResults(signal[..., i])
-                    for i in range(self.npulses)
-                ]
-            return [IntegratedResults(signal[..., i]) for i in range(self.npulses)]
-        else:
-            if self.average:
-                # TODO: calculate std
-                return [AveragedIntegratedResults(signal)]
-            return [IntegratedResults(signal)]
+        return self.result(ires + 1j * qres)
 
 
 @dataclass
@@ -180,32 +184,35 @@ class ShotsAcquisition(Acquisition):
     angle: Optional[float] = None
     """Angle in the IQ plane to be used for classification of single shots."""
 
-    I: _Variable = field(default_factory=lambda: declare(fixed))
-    Q: _Variable = field(default_factory=lambda: declare(fixed))
+    i: _Variable = field(default_factory=lambda: declare(fixed))
+    q: _Variable = field(default_factory=lambda: declare(fixed))
     """Variables to save the (I, Q) values acquired from a single shot."""
     shot: _Variable = field(default_factory=lambda: declare(int))
     """Variable for calculating an individual shots."""
     shots: _ResultSource = field(default_factory=lambda: declare_stream())
     """Stream to collect multiple shots."""
 
+    RESULT_CLS = SampleResults
+    AVERAGED_RESULT_CLS = AveragedSampleResults
+
     def __post_init__(self):
         self.cos = np.cos(self.angle)
         self.sin = np.sin(self.angle)
 
     def assign_element(self, element):
-        assign_variables_to_element(element, self.I, self.Q, self.shot)
+        assign_variables_to_element(element, self.i, self.q, self.shot)
 
     def measure(self, operation, element):
         qua.measure(
             operation,
             element,
             None,
-            qua.dual_demod.full("cos", "out1", "sin", "out2", self.I),
-            qua.dual_demod.full("minus_sin", "out1", "cos", "out2", self.Q),
+            qua.dual_demod.full("cos", "out1", "sin", "out2", self.i),
+            qua.dual_demod.full("minus_sin", "out1", "cos", "out2", self.q),
         )
         qua.assign(
             self.shot,
-            qua.Cast.to_int(self.I * self.cos - self.Q * self.sin > self.threshold),
+            qua.Cast.to_int(self.i * self.cos - self.q * self.sin > self.threshold),
         )
         qua.save(self.shot, self.shots)
 
@@ -221,20 +228,7 @@ class ShotsAcquisition(Acquisition):
 
     def fetch(self, handles):
         shots = handles.get(f"{self.name}_shots").fetch_all()
-        if self.npulses > 1:
-            if self.average:
-                # TODO: calculate std
-                return [
-                    AveragedSampleResults(shots[..., i]) for i in range(self.npulses)
-                ]
-            return [
-                SampleResults(shots[..., i].astype(int)) for i in range(self.npulses)
-            ]
-        else:
-            if self.average:
-                # TODO: calculate std
-                return [AveragedSampleResults(shots)]
-            return [SampleResults(shots.astype(int))]
+        return self.result(shots)
 
 
 ACQUISITION_TYPES = {
@@ -255,7 +249,7 @@ def declare_acquisitions(ro_pulses, qubits, options):
             options containing acquisition type and averaging mode.
 
     Returns:
-        Dictionary containing the different :class:`qibolab.instruments.qm.acquisition.Acquisition` objects.
+        List of all :class:`qibolab.instruments.qm.acquisition.Acquisition` objects.
     """
     acquisitions = {}
     for qmpulse in ro_pulses:
@@ -263,22 +257,20 @@ def declare_acquisitions(ro_pulses, qubits, options):
         name = f"{qmpulse.operation}_{qubit}"
         if name not in acquisitions:
             average = options.averaging_mode is AveragingMode.CYCLIC
-            acquisition_cls = ACQUISITION_TYPES[options.acquisition_type]
+            kwargs = {}
             if options.acquisition_type is AcquisitionType.DISCRIMINATION:
-                threshold = qubits[qubit].threshold
-                iq_angle = qubits[qubit].iq_angle
-                acquisition = acquisition_cls(
-                    name, qubit, average, threshold=threshold, angle=iq_angle
-                )
-            else:
-                acquisition = acquisition_cls(name, qubit, average)
+                kwargs["threshold"] = qubits[qubit].threshold
+                kwargs["angle"] = qubits[qubit].iq_angle
 
+            acquisition = ACQUISITION_TYPES[options.acquisition_type](
+                name, qubit, average, **kwargs
+            )
             acquisition.assign_element(qmpulse.element)
             acquisitions[name] = acquisition
 
         acquisitions[name].keys.append(qmpulse.pulse.serial)
         qmpulse.acquisition = acquisitions[name]
-    return acquisitions
+    return list(acquisitions.values())
 
 
 def fetch_results(result, acquisitions):
@@ -294,7 +286,7 @@ def fetch_results(result, acquisitions):
     handles = result.result_handles
     handles.wait_for_all_values()  # for async replace with ``handles.is_processing()``
     results = {}
-    for acquisition in acquisitions.values():
+    for acquisition in acquisitions:
         data = acquisition.fetch(handles)
         for serial, result in zip(acquisition.keys, data):
             results[acquisition.qubit] = results[serial] = result

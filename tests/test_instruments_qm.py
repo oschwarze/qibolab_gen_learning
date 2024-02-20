@@ -45,10 +45,10 @@ def test_qmpulse_declare_output(acquisition_type):
             assert isinstance(acquisition.shot, qua._dsl._Variable)
             assert isinstance(acquisition.shots, qua._dsl._ResultSource)
         elif acquisition_type is AcquisitionType.INTEGRATION:
-            assert isinstance(acquisition.I, qua._dsl._Variable)
-            assert isinstance(acquisition.Q, qua._dsl._Variable)
-            assert isinstance(acquisition.I_stream, qua._dsl._ResultSource)
-            assert isinstance(acquisition.Q_stream, qua._dsl._ResultSource)
+            assert isinstance(acquisition.i, qua._dsl._Variable)
+            assert isinstance(acquisition.q, qua._dsl._Variable)
+            assert isinstance(acquisition.istream, qua._dsl._ResultSource)
+            assert isinstance(acquisition.qstream, qua._dsl._ResultSource)
         elif acquisition_type is AcquisitionType.RAW:
             assert isinstance(acquisition.adc_stream, qua._dsl._ResultSource)
 
@@ -307,7 +307,7 @@ def test_qm_register_pulse(qmplatform, pulse_type, qubit):
         target_pulse = {
             "operation": "measurement",
             "length": pulse.duration,
-            "waveforms": {"I": "constant_wf0.003575", "Q": "constant_wf0.003575"},
+            "waveforms": {"I": "constant_wf0.003575", "Q": "zero_wf"},
             "digital_marker": "ON",
             "integration_weights": {
                 "cos": "cosine_weights1",

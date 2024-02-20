@@ -349,7 +349,7 @@ class QMController(Controller):
                 )
 
             with qua.stream_processing():
-                for acquisition in acquisitions.values():
+                for acquisition in acquisitions:
                     acquisition.download(*buffer_dims)
 
         if self.script_file_name is not None:
