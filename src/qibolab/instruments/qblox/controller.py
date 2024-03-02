@@ -17,7 +17,7 @@ from qibolab.sweeper import Parameter, Sweeper, SweeperType
 MAX_BATCH_SIZE = 30
 """Maximum number of sequences that can be unrolled in a single one
 (independent of measurements)."""
-SEQUENCER_MEMORY = 2**17
+SEQUENCER_MEMORY = 2**16
 
 
 class QbloxController(Controller):
@@ -486,6 +486,9 @@ class QbloxController(Controller):
                             results[pulse.id] = result[pulse.serial]
                         results[pulse.qubit] = results[pulse.id]
                 else:
+                    log.info(
+                        f"The number of bins {num_bins} exceeds the sequencer memory {SEQUENCER_MEMORY}. Splitting in batches."
+                    )
                     sweepers_repetitions = 1
                     for sweeper in sweepers:
                         sweepers_repetitions *= len(sweeper.values)
@@ -496,13 +499,26 @@ class QbloxController(Controller):
                         num_bins = max_rt_nshots * sweepers_repetitions
 
                         for sft_iteration in range(num_full_sft_iterations + 1):
+                            log.info(
+                                f"Executing batch {sft_iteration + 1} out of {num_full_sft_iterations + 1}."
+                            )
                             _nshots = min(
                                 max_rt_nshots, nshots - sft_iteration * max_rt_nshots
+                            )
+                            # the below solution is not ideal, if ExecutionParameters changes in the future,
+                            # this will need to be changed. A better alternative would be to implement a copy() method
+                            # in ExecutionParameters, and to not make the class frozen
+                            _options = ExecutionParameters(
+                                nshots=_nshots,
+                                relaxation_time=options.relaxation_time,
+                                fast_reset=options.fast_reset,
+                                acquisition_type=options.acquisition_type,
+                                averaging_mode=options.averaging_mode,
                             )
                             self._sweep_recursion(
                                 qubits,
                                 sequence,
-                                options,
+                                _options,
                                 *sweepers,
                                 results=results,
                             )
