@@ -17,7 +17,7 @@ from qibolab.sweeper import Parameter, Sweeper, SweeperType
 MAX_BATCH_SIZE = 30
 """Maximum number of sequences that can be unrolled in a single one
 (independent of measurements)."""
-SEQUENCER_MEMORY = 2**16
+SEQUENCER_MEMORY = 98000  # 2**17
 
 
 class QbloxController(Controller):
@@ -459,7 +459,7 @@ class QbloxController(Controller):
                     num_bins *= len(sweeper.values)
 
                     # split the sweep if the number of bins is larget than the memory of the sequencer (2**17)
-                if num_bins < SEQUENCER_MEMORY:
+                if num_bins <= SEQUENCER_MEMORY:
                     # for sweeper in sweepers:
                     #     if sweeper.parameter is Parameter.amplitude:
                     #         # qblox cannot sweep amplitude in real time, but sweeping gain is quivalent
