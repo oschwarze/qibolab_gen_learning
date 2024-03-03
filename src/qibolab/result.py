@@ -18,7 +18,7 @@ class IntegratedResults:
         self.voltage: npt.NDArray[np.complex128] = data
 
     def __add__(self, data):
-        return self.__class__(np.append(self.voltage, data.voltage))
+        return self.__class__(np.append(self.voltage, data.voltage, axis=0))
 
     @property
     def voltage_i(self):
@@ -74,7 +74,7 @@ class AveragedIntegratedResults(IntegratedResults):
 
     def __add__(self, data):
         new_res = super().__add__(data)
-        new_res.std = np.append(self.std, data.std)
+        new_res.std = np.append(self.std, data.std, axis=0)
         return new_res
 
 
@@ -111,7 +111,7 @@ class SampleResults:
         self.samples: npt.NDArray[np.uint32] = np.array(data).astype(np.uint32)
 
     def __add__(self, data):
-        return self.__class__(np.append(self.samples, data.samples))
+        return self.__class__(np.append(self.samples, data.samples, axis=0))
 
     @lru_cache
     def probability(self, state=0):
@@ -157,9 +157,9 @@ class AveragedSampleResults(SampleResults):
     def __add__(self, data):
         new_res = super().__add__(data)
         new_res.statistical_frequency = np.append(
-            self.statistical_frequency, data.statistical_frequency
+            self.statistical_frequency, data.statistical_frequency, axis=0
         )
-        new_res.std = np.append(self.std, data.std)
+        new_res.std = np.append(self.std, data.std, axis=0)
         return new_res
 
     @lru_cache
