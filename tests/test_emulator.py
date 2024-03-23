@@ -2,15 +2,8 @@ import numpy as np
 import pytest
 from qutip import Options, identity, tensor
 
-import qibolab.instruments.simulator.models as models
 from qibolab import AcquisitionType, AveragingMode, ExecutionParameters
 from qibolab.instruments.simulator import emulator_test
-from qibolab.instruments.simulator.models import models_template, general_no_coupler_model
-from qibolab.instruments.simulator.backends.qutip_backend import Qutip_Simulator, function_from_array
-from qibolab.instruments.simulator.backends.generic import print_Hamiltonian, op_from_instruction, dec_to_basis_string
-
-from qutip import Options, Qobj, identity, tensor
-
 from qibolab.instruments.simulator.backends.generic import (
     dec_to_basis_string,
     op_from_instruction,
@@ -20,10 +13,13 @@ from qibolab.instruments.simulator.backends.qutip_backend import (
     Qutip_Simulator,
     function_from_array,
 )
+from qibolab.instruments.simulator.models import (
+    general_no_coupler_model,
+    models_template,
+)
 from qibolab.oneQ_emulator import create_oneQ_emulator
 from qibolab.pulses import PulseSequence
 from qibolab.sweeper import Parameter, QubitParameter, Sweeper
-
 
 SWEPT_POINTS = 2
 PLATFORM_NAMES = ["default_q0"]
