@@ -11,8 +11,8 @@ from qibolab.instruments.simulator.backends.generic import (
 )
 from qibolab.instruments.simulator.backends.qutip_backend import (
     Qutip_Simulator,
-    function_from_array,
     extend_op_dim,
+    function_from_array,
 )
 from qibolab.instruments.simulator.models import (
     general_no_coupler_model,
@@ -317,9 +317,7 @@ def test_state_from_basis_vector_exception(model):
     for combined_vector in combined_vector_list:
         with pytest.raises(Exception) as excinfo:
             basis_vector, cbasis_vector, error_vector = combined_vector
-            simulation_backend.state_from_basis_vector(
-                basis_vector, cbasis_vector
-            )
+            simulation_backend.state_from_basis_vector(basis_vector, cbasis_vector)
         assert f"length of {error_vector} does not match" in str(excinfo.value)
 
 
