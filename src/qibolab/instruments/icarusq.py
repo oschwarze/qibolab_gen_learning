@@ -1,8 +1,9 @@
 import urllib3
-from qcodes_contrib_drivers.drivers.Valon.Valon_5015 import Valon5015 as Valon5015_LO
 
 from qibolab.instruments.abstract import Instrument
-from qibolab.instruments.oscillator import LocalOscillator
+
+# from qcodes_contrib_drivers.drivers.Valon.Valon_5015 import Valon5015 as Valon5015_LO
+
 
 
 class MCAttenuator(Instrument):
@@ -29,8 +30,8 @@ class MCAttenuator(Instrument):
         pass
 
 
-class Valon5015(LocalOscillator):
-    """Driver for the Valon 5015 local oscillator."""
+""" class Valon5015(LocalOscillator):
+    'Driver for the Valon 5015 local oscillator.'
 
     def create(self):
         device = Valon5015_LO(
@@ -43,4 +44,4 @@ class Valon5015(LocalOscillator):
         return device
 
     def __del__(self):
-        self.disconnect()
+        self.disconnect() """
