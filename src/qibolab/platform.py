@@ -10,7 +10,7 @@ from qibo.config import log, raise_error
 from .couplers import Coupler
 from .execution_parameters import ExecutionParameters
 from .instruments.abstract import Controller, Instrument, InstrumentId
-from .pulses import Delay, Drag, PulseSequence, PulseType
+from .pulses import Delay, PulseSequence, PulseType
 from .qubits import Qubit, QubitId, QubitPair, QubitPairId
 from .serialize_ import replace
 from .sweeper import Sweeper
