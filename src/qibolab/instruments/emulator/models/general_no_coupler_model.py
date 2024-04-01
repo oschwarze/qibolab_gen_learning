@@ -2,7 +2,7 @@ from typing import Union
 
 import numpy as np
 
-from qibolab.instruments.simulator.models.methods import (
+from qibolab.instruments.emulator.models.methods import (
     GHz,
     default_noflux_platform2simulator_channels,
     load_model_params,

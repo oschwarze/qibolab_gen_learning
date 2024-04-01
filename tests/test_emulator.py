@@ -1,49 +1,50 @@
+import pathlib
+
 import numpy as np
 import pytest
 from qutip import Options, identity, tensor
 
 from qibolab import AcquisitionType, AveragingMode, ExecutionParameters
-from qibolab.instruments.simulator import emulator_test
-from qibolab.instruments.simulator.backends.generic import (
+from qibolab.instruments.emulator.backends.generic import (
     dec_to_basis_string,
     op_from_instruction,
     print_Hamiltonian,
 )
-from qibolab.instruments.simulator.backends.qutip_backend import (
+from qibolab.instruments.emulator.backends.qutip_backend import (
     Qutip_Simulator,
     extend_op_dim,
     function_from_array,
 )
-from qibolab.instruments.simulator.models import (
+from qibolab.instruments.emulator.models import (
     general_no_coupler_model,
     models_template,
 )
-from qibolab.oneQ_emulator import create_oneQ_emulator
+from qibolab.instruments.emulator.models.methods import load_model_params
 from qibolab.pulses import PulseSequence
 from qibolab.sweeper import Parameter, QubitParameter, Sweeper
 
+from .emulators import default_q0
+
 SWEPT_POINTS = 2
-PLATFORM_NAMES = ["default_q0"]
+EMULATORS = [default_q0]
 MODELS = [models_template, general_no_coupler_model]
 
 
-@pytest.mark.parametrize("name", PLATFORM_NAMES)
-def test_emulator_initialization(name):
-    runcard_folder = f"{emulator_test.__path__[0]}/{name}"
-    platform = create_oneQ_emulator(runcard_folder)
+@pytest.mark.parametrize("emulator", EMULATORS)
+def test_emulator_initialization(emulator):
+    platform = emulator.create()
     platform.connect()
     platform.disconnect()
 
 
-@pytest.mark.parametrize("name", PLATFORM_NAMES)
+@pytest.mark.parametrize("emulator", EMULATORS)
 @pytest.mark.parametrize(
     "acquisition",
     [AcquisitionType.DISCRIMINATION, AcquisitionType.INTEGRATION, AcquisitionType.RAW],
 )
-def test_emulator_execute_pulse_sequence(name, acquisition):
+def test_emulator_execute_pulse_sequence(emulator, acquisition):
     nshots = 10  # 100
-    runcard_folder = f"{emulator_test.__path__[0]}/{name}"
-    platform = create_oneQ_emulator(runcard_folder)
+    platform = emulator.create()
     pulse_simulator = platform.instruments["pulse_simulator"]
     sequence = PulseSequence()
     sequence.add(platform.create_RX_pulse(0, 0))
@@ -57,13 +58,12 @@ def test_emulator_execute_pulse_sequence(name, acquisition):
             platform.execute_pulse_sequence(sequence, options)
         assert "Emulator does not support" in str(excinfo.value)
     pulse_simulator.print_sim_details()
-    pulse_simulator.simulation_backend.fidelity_history()
+    pulse_simulator.simulation_backend.fidelity_history(show_plot=False)
 
 
-@pytest.mark.parametrize("name", PLATFORM_NAMES)
-def test_emulator_execute_pulse_sequence_fast_reset(name):
-    runcard_folder = f"{emulator_test.__path__[0]}/{name}"
-    platform = create_oneQ_emulator(runcard_folder)
+@pytest.mark.parametrize("emulator", EMULATORS)
+def test_emulator_execute_pulse_sequence_fast_reset(emulator):
+    platform = emulator.create()
     sequence = PulseSequence()
     sequence.add(platform.create_qubit_readout_pulse(0, 0))
     options = ExecutionParameters(
@@ -72,17 +72,16 @@ def test_emulator_execute_pulse_sequence_fast_reset(name):
     result = platform.execute_pulse_sequence(sequence, options)
 
 
-@pytest.mark.parametrize("name", PLATFORM_NAMES)
+@pytest.mark.parametrize("emulator", EMULATORS)
 @pytest.mark.parametrize("fast_reset", [True, False])
 @pytest.mark.parametrize("parameter", Parameter)
 @pytest.mark.parametrize("average", [AveragingMode.SINGLESHOT, AveragingMode.CYCLIC])
 @pytest.mark.parametrize("acquisition", [AcquisitionType.DISCRIMINATION])
 @pytest.mark.parametrize("nshots", [10, 20])
 def test_emulator_single_sweep(
-    name, fast_reset, parameter, average, acquisition, nshots
+    emulator, fast_reset, parameter, average, acquisition, nshots
 ):
-    runcard_folder = f"{emulator_test.__path__[0]}/{name}"
-    platform = create_oneQ_emulator(runcard_folder)
+    platform = emulator.create()
     sequence = PulseSequence()
     pulse = platform.create_qubit_readout_pulse(qubit=0, start=0)
     if parameter is Parameter.amplitude:
@@ -117,17 +116,16 @@ def test_emulator_single_sweep(
         assert "Sweep parameter requested not available" in str(excinfo.value)
 
 
-@pytest.mark.parametrize("name", PLATFORM_NAMES)
+@pytest.mark.parametrize("emulator", EMULATORS)
 @pytest.mark.parametrize("parameter1", Parameter)
 @pytest.mark.parametrize("parameter2", Parameter)
 @pytest.mark.parametrize("average", [AveragingMode.SINGLESHOT, AveragingMode.CYCLIC])
 @pytest.mark.parametrize("acquisition", [AcquisitionType.DISCRIMINATION])
 @pytest.mark.parametrize("nshots", [10, 20])
 def test_emulator_double_sweep(
-    name, parameter1, parameter2, average, acquisition, nshots
+    emulator, parameter1, parameter2, average, acquisition, nshots
 ):
-    runcard_folder = f"{emulator_test.__path__[0]}/{name}"
-    platform = create_oneQ_emulator(runcard_folder)
+    platform = emulator.create()
     sequence = PulseSequence()
     pulse = platform.create_qubit_drive_pulse(qubit=0, start=0, duration=2)
     ro_pulse = platform.create_qubit_readout_pulse(qubit=0, start=pulse.finish)
@@ -180,14 +178,15 @@ def test_emulator_double_sweep(
         )
 
 
-@pytest.mark.parametrize("name", PLATFORM_NAMES)
+@pytest.mark.parametrize("emulator", EMULATORS)
 @pytest.mark.parametrize("parameter", Parameter)
 @pytest.mark.parametrize("average", [AveragingMode.SINGLESHOT, AveragingMode.CYCLIC])
 @pytest.mark.parametrize("acquisition", [AcquisitionType.DISCRIMINATION])
 @pytest.mark.parametrize("nshots", [10, 20])
-def test_emulator_single_sweep_multiplex(name, parameter, average, acquisition, nshots):
-    runcard_folder = f"{emulator_test.__path__[0]}/{name}"
-    platform = create_oneQ_emulator(runcard_folder)
+def test_emulator_single_sweep_multiplex(
+    emulator, parameter, average, acquisition, nshots
+):
+    platform = emulator.create()
     sequence = PulseSequence()
     ro_pulses = {}
     for qubit in platform.qubits:
@@ -234,9 +233,8 @@ def test_emulator_single_sweep_multiplex(name, parameter, average, acquisition, 
 
 # pulse_simulator
 def test_pulse_simulator_initialization():
-    name = "default_q0"
-    runcard_folder = f"{emulator_test.__path__[0]}/{name}"
-    platform = create_oneQ_emulator(runcard_folder)
+    emulator = default_q0
+    platform = emulator.create()
     sim_opts = Options(atol=1e-11, rtol=1e-9, nsteps=int(1e6))
     pulse_simulator = platform.instruments["pulse_simulator"]
     pulse_simulator.update_sim_opts(sim_opts)
@@ -248,13 +246,15 @@ def test_pulse_simulator_initialization():
 
 
 def test_pulse_simulator_play_def_execparams_no_dissipation_dt_units_ro_exception():
-    name = "default_q0"
-    runcard_folder = f"{emulator_test.__path__[0]}/{name}"
-    platform = create_oneQ_emulator(runcard_folder)
+    emulator = default_q0
+    platform = emulator.create()
     pulse_simulator = platform.instruments["pulse_simulator"]
     pulse_simulator.model_config.update({"readout_error": {1: [0.1, 0.1]}})
     pulse_simulator.model_config.update({"runcard_duration_in_dt_units": True})
-    pulse_simulator.model_config.update({"simulate_dissipation": False})
+    pulse_simulator.simulation_config.update({"simulate_dissipation": False})
+    pulse_simulator.model_config["drift"].update({"two_body": []})
+    pulse_simulator.model_config["dissipation"].update({"t1": []})
+    print_Hamiltonian(pulse_simulator.model_config)
     pulse_simulator.update()
     sequence = PulseSequence()
     sequence.add(platform.create_RX_pulse(0, 0))
@@ -262,12 +262,21 @@ def test_pulse_simulator_play_def_execparams_no_dissipation_dt_units_ro_exceptio
     with pytest.raises(ValueError) as excinfo:
         pulse_simulator.play({0: 0}, {}, sequence)
     assert "not present in ro_error_dict" in str(excinfo.value)
-    pulse_simulator.simulation_backend.fidelity_history()
+    pulse_simulator.simulation_backend.fidelity_history(time_in_dt=True)
+
+
+# models.methods
+def test_load_model_params():
+    FOLDER = pathlib.Path(__file__).parent
+    emulators_folder = pathlib.Path(__file__).parent / "emulators"
+    device_name = "ibmfakebelem_q01"
+    model_params_folder = emulators_folder / device_name
+    load_model_params(model_params_folder)
 
 
 # backends.generic
 def test_dec_to_basis_string():
-    dec_to_basis_string(x=1)
+    dec_to_basis_string(x=1, nlevels=[3, 2, 2])
 
 
 @pytest.mark.parametrize("model", MODELS)
@@ -280,7 +289,11 @@ def test_op_from_instruction():
     model = models_template
     model_config = model.generate_model_config()
     test_inst = model_config["drift"]["one_body"][1]
+    test_inst2 = model_config["drift"]["two_body"][0]
+    test_inst3 = (1.0, "b_2 ^ b_1 ^ b_0", ["2", "1", "0"])
     op_from_instruction(test_inst, multiply_coeff=False)
+    op_from_instruction(test_inst2, multiply_coeff=False)
+    op_from_instruction(test_inst3, multiply_coeff=False)
 
 
 # backends.qutip_backend
@@ -296,11 +309,18 @@ def test_make_arbitrary_state(model):
     model_config = model.generate_model_config()
     simulation_backend = Qutip_Simulator(model_config)
     zerostate = simulation_backend.psi0.copy()
-    qibo_statevector = np.zeros(zerostate.shape[0])
+    dim = zerostate.shape[0]
+    qibo_statevector = np.zeros(dim)
     qibo_statevector[2] = 1
     qibo_statevector = np.array(qibo_statevector.tolist())
+    qibo_statedm = np.kron(
+        qibo_statevector.reshape([dim, 1]), qibo_statevector.reshape([1, dim])
+    )
     teststate = simulation_backend.make_arbitrary_state(
         qibo_statevector, is_qibo_state_vector=True
+    )
+    teststatedm = simulation_backend.make_arbitrary_state(
+        qibo_statedm, is_qibo_state_vector=True
     )
 
 
@@ -310,6 +330,7 @@ def test_state_from_basis_vector_exception(model):
     simulation_backend = Qutip_Simulator(model_config)
     basis_vector0 = [0 for i in range(simulation_backend.nqubits)]
     cbasis_vector0 = [0 for i in range(simulation_backend.ncouplers)]
+    simulation_backend.state_from_basis_vector(basis_vector0, None)
     combined_vector_list = [
         [basis_vector0 + [0], cbasis_vector0, "basis_vector"],
         [basis_vector0, cbasis_vector0 + [0], "cbasis_vector"],

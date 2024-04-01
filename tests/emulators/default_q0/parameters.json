@@ -1,48 +1,9 @@
 {
-    "device_name": "default_q0",
-    "nqubits": 1,
-    "ncouplers": 0,
+    "nqubits": 5,
     "description": "IBM 5-qubit device FakeBelem, q0 only",
     "settings": {
         "nshots": 4096,
         "relaxation_time": 300000
-    },
-    "instruments": {
-        "pulse_simulator": {
-            "model_params": {
-                    "model_name": "general_no_coupler_model",
-                    "topology": [],
-                    "nqubits": 1,
-                    "ncouplers": 0,
-                    "qubits_list": ["0"],
-                    "couplers_list": [],
-                    "nlevels_q": [3],
-                    "nlevels_c": [],
-                    "readout_error": {"0": [0.01, 0.02]},
-                    "drive_freq": {"0": 5.090167234445013},
-                    "T1": {"0": 88578.48970762537},
-                    "T2": {"0": 106797.94866226273},
-                    "lo_freq": {"0": 5.090167234445013},
-                    "rabi_freq": {"0": 0.333},
-                    "anharmonicity": {"0": -0.3361230051821652},
-                    "coupling_strength": {}
-            },
-            "simulation_config": {
-                    "simulation_engine_name": "Qutip",
-                    "sampling_rate": 4.5,
-                    "sim_sampling_boost": 10,
-                    "runcard_duration_in_dt_units": false,
-                    "instant_measurement": true,
-                    "simulate_dissipation": true,
-                    "output_state_history": true
-            },
-            "sim_opts": null,
-            "bounds": {
-                "waveforms": 1,
-                "readout": 1,
-                "instructions": 1
-            }
-        }
     },
     "qubits": [
         0
@@ -53,10 +14,10 @@
         "single_qubit": {
             "0": {
                 "RX": {
-                    "duration": 25.687,
-                    "amplitude":0.1,
+                    "duration": 35.55555555555556,
+                    "amplitude": 0.24045125169257026,
                     "frequency": 5090167234.445013,
-                    "shape": "Drag(4, -4)",
+                    "shape": "Drag(4, -2.4305800297101414)",
                     "type": "qd",
                     "start": 0,
                     "phase": 0
@@ -82,8 +43,8 @@
                 "Ec": 0,
                 "Ej": 0,
                 "g": 0,
-                "T1": 88578.48970762537,
-                "T2": 106797.94866226273,
+                "T1": 0.0,
+                "T2": 0.0,
                 "sweetspot": 0,
                 "mean_gnd_states": "1.5417+0.1817j",
                 "mean_exc_states": "2.5332-0.5914j",

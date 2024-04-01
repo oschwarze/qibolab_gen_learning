@@ -1,8 +1,18 @@
-import operator
-from functools import reduce
+import json
+from pathlib import Path
+
+GHz = 1e9
+ns = 1e-9
+
+MODEL_PARAMS = "model.json"
 
 
-def default_noflux_platform_to_simulator_channels(
+def load_model_params(path: Path) -> dict:
+    """Load model parameters JSON to a dictionary."""
+    return json.loads((path / MODEL_PARAMS).read_text())
+
+
+def default_noflux_platform2simulator_channels(
     qubits_list: list, couplers_list: list
 ) -> dict:
     """Returns the default dictionary that maps platform channel names to simulator channel names.
@@ -13,8 +23,11 @@ def default_noflux_platform_to_simulator_channels(
     Returns:
         dict: Mapping between platform channel names to simulator chanel names.
     """
-    return reduce(
-        operator.or_,
-        [{f"drive-{q}": f"D-{q}", f"readout-{q}": f"R-{q}"} for q in qubits_list]
-        + [{f"drive-{c}": f"D-{c}"} for c in couplers_list],
-    )
+    platform2simulator_channels = {}
+    for qubit in qubits_list:
+        platform2simulator_channels.update({f"drive-{qubit}": f"D-{qubit}"})
+        platform2simulator_channels.update({f"readout-{qubit}": f"R-{qubit}"})
+    for coupler in couplers_list:
+        platform2simulator_channels.update({f"drive-{coupler}": f"D-{coupler}"})
+
+    return platform2simulator_channels
