@@ -4437,7 +4437,7 @@ interplot = ["dill (>=0.3.4,<0.4.0)", "ipython (>=7.31.1,<8.0.0)", "pypiwin32 (>
 name = "qutip"
 version = "4.7.5"
 description = "QuTiP: The Quantum Toolbox in Python"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "qutip-4.7.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b4ae6b823674328703f96ca1fec75260c773d3eea981f91eecaa71235c965ba3"},
@@ -5824,4 +5824,4 @@ zh = ["laboneq"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "bab2cc8e6dfe7b3990cf549802b84bf1c4903a854bf3e56a564866f8a76dd784"
+content-hash = "68a40d2b4d83a09d60feee646d60000c976885bd593edc8258cb7b79b2d8e015"
