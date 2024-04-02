@@ -4437,7 +4437,7 @@ interplot = ["dill (>=0.3.4,<0.4.0)", "ipython (>=7.31.1,<8.0.0)", "pypiwin32 (>
 name = "qutip"
 version = "4.7.5"
 description = "QuTiP: The Quantum Toolbox in Python"
-optional = true
+optional = false
 python-versions = "*"
 files = [
     {file = "qutip-4.7.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b4ae6b823674328703f96ca1fec75260c773d3eea981f91eecaa71235c965ba3"},
@@ -5815,6 +5815,7 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy", "pytest-ruff (>=0.2.1)"]
 
 [extras]
+emulator = ["qutip"]
 los = ["pyvisa-py", "qcodes", "qcodes_contrib_drivers"]
 qblox = ["pyvisa-py", "qblox-instruments", "qcodes", "qcodes_contrib_drivers"]
 qm = ["qm-qua", "qualang-tools"]
@@ -5824,4 +5825,4 @@ zh = ["laboneq"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "68a40d2b4d83a09d60feee646d60000c976885bd593edc8258cb7b79b2d8e015"
+content-hash = "d6a52c9d24c677946efcc94422cacbce804935f64d39e408360ecd8aaec8588f"
