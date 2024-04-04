@@ -45,9 +45,11 @@
               config,
               ...
             }: {
-              packages = with pkgs; [pre-commit poethepoet jupyter stdenv.cc.cc.lib zlib];
+              packages = with pkgs; [pre-commit poethepoet jupyter];
 
-              env.QIBOLAB_PLATFORMS = (dirOf config.env.DEVENV_ROOT) + "/qibolab_platforms_qrc";
+              env = {
+                QIBOLAB_PLATFORMS = (dirOf config.env.DEVENV_ROOT) + "/qibolab_platforms_qrc";
+              };
 
               languages.c = {
                 enable = true;
@@ -61,10 +63,13 @@
                 enable = true;
                 poetry = {
                   enable = true;
-                  install.enable = true;
-                  install.groups = ["dev" "analysis" "tests"];
-                  install.allExtras = true;
+                  install = {
+                    enable = true;
+                    groups = ["dev" "analysis" "tests"];
+                    allExtras = true;
+                  };
                 };
+                libraries = with pkgs; [zlib];
                 version = "3.11";
               };
 
