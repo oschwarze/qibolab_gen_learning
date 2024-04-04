@@ -2,10 +2,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
-    devenv = {
-      url = "github:cachix/devenv";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    devenv.url = "github:cachix/devenv";
     nixpkgs-python = {
       url = "github:cachix/nixpkgs-python";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -48,11 +45,9 @@
               config,
               ...
             }: {
-              packages = with pkgs; [pre-commit poethepoet jupyter zlib];
+              packages = with pkgs; [pre-commit poethepoet jupyter stdenv.cc.cc.lib zlib];
 
-              env = {
-                QIBOLAB_PLATFORMS = (dirOf config.env.DEVENV_ROOT) + "/qibolab_platforms_qrc";
-              };
+              env.QIBOLAB_PLATFORMS = (dirOf config.env.DEVENV_ROOT) + "/qibolab_platforms_qrc";
 
               languages.c = {
                 enable = true;
