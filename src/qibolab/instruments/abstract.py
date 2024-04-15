@@ -102,6 +102,9 @@ class Controller(Instrument):
             the acquired :class:`qibolab.result.ExecutionResults` object.
         """
 
+    def play_sequences(self, *args, **kwargs):
+        raise NotImplementedError
+
     @abstractmethod
     def sweep(self, *args, **kwargs):
         """Play a pulse sequence while sweeping one or more parameters.

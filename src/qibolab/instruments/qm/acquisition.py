@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -257,9 +258,14 @@ def fetch_results(result, acquisitions):
     """
     handles = result.result_handles
     handles.wait_for_all_values()  # for async replace with ``handles.is_processing()``
-    results = {}
+    results = defaultdict(list)
     for acquisition in acquisitions:
         data = acquisition.fetch(handles)
-        for id_, result in zip(acquisition.keys, data):
-            results[acquisition.qubit] = results[id_] = result
-    return results
+        for key, result in zip(acquisition.keys, data):
+            results[key].append(result)
+            results[acquisition.qubit] = results[key]
+
+    # collapse single element lists for back-compatibility
+    return {
+        key: value[0] if len(value) == 1 else value for key, value in results.items()
+    }
