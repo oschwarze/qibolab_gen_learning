@@ -16,7 +16,7 @@ from qibolab.unrolling import Bounds
 from .acquisition import fetch_results
 from .config import SAMPLING_RATE, QMConfig
 from .devices import Octave, OPXplus
-from .instructions import Align, Instructions, UniqueInstructions, Wait
+from .instructions import Align, Instructions, Measure, UniqueInstructions, Wait
 from .ports import OPXIQ
 from .sweepers import sweep
 
@@ -270,7 +270,9 @@ class QMController(Controller):
         )
         return self.manager.simulate(self.config.__dict__, program, simulation_config)
 
-    def create_instructions(self, qubits, sequence, options, sweepers):
+    def create_instructions(
+        self, qubits, sequence, options, sweepers, acquisitions=None
+    ):
         """Translates a :class:`qibolab.pulses.PulseSequence` to
         :class:`qibolab.instruments.qm.instructions.Instructions`.
 
@@ -289,6 +291,8 @@ class QMController(Controller):
         # like we do for readout multiplex
 
         instructions = Instructions(self.config, find_baking_pulses(sweepers))
+        if acquisitions is not None:
+            instructions.acquisitions = acquisitions
         for pulse in sorted(
             sequence.pulses, key=lambda pulse: (pulse.start, pulse.duration)
         ):
@@ -308,26 +312,59 @@ class QMController(Controller):
         return self.sweep(qubits, couplers, sequence, options)
 
     def play_sequences(self, qubits, couplers, sequences, options):
-        indices = []
-        unique_instructions = UniqueInstructions()
-        relaxation = options.relaxation_time // 4
-        for sequence in sequences:
-            instructions = self.create_instructions(qubits, sequence, options, [])
-            indices.extend(unique_instructions[instr] for instr in instructions)
-            indices.append(Wait(elements=tuple(), duration=relaxation))
-            indices.append(Align())
+        # raise NotImplementedError
 
-    #    with qua.program() as experiment:
-    #        n = declare(int)
-    #        p = declare(int)
-    #        acquisitions = declare_acquisitions(ro_pulses, qubits, options)
-    #        with for_(n, 0, n < options.nshots, n + 1):
-    #            qua.align()
-    #            with for_each_(p, indices):
-    #                with qua.switch_(p):
-    #                    for operation, idx in self.unique_pulses.items():
-    #                        pass
-    #    return self.sweep(qubits, couplers, sequence, options)
+        buffer_dims = []
+        if options.averaging_mode is AveragingMode.SINGLESHOT:
+            buffer_dims.append(options.nshots)
+
+        # register flux elements for all qubits so that they are
+        # always at sweetspot even when they are not used
+        for qubit in qubits.values():
+            if qubit.flux:
+                self.config.register_port(qubit.flux.port)
+                self.config.register_flux_element(qubit)
+
+        indices = []
+        relax = Wait(elements=tuple(), duration=options.relaxation_time // 4)
+        align = Align()
+        unique_instructions = UniqueInstructions({align: 0, relax: 1})
+        acquisitions = {}
+        for sequence in sequences:
+            instructions = self.create_instructions(
+                qubits, sequence, options, [], acquisitions
+            )
+            indices.extend(unique_instructions[instr] for instr in instructions)
+            indices.append(1)
+            indices.append(0)
+
+        with qua.program() as experiment:
+            n = declare(int)
+            p = declare(int)
+            # declare acquisition variables
+            for instruction, acquisition in acquisitions.items():
+                acquisition.declare(instruction.element)
+            with for_(n, 0, n < options.nshots, n + 1):
+                qua.align()
+                with qua.for_each_(p, indices):
+                    with qua.switch_(p):
+                        for instruction, idx in unique_instructions.items():
+                            with qua.case_(idx):
+                                if isinstance(instruction, Measure):
+                                    instruction(acquisitions[instruction])
+                                else:
+                                    instruction()
+
+            with qua.stream_processing():
+                for acquisition in instructions.acquisitions.values():
+                    acquisition.download(*buffer_dims)
+
+        if self.script_file_name is not None:
+            with open(self.script_file_name, "w") as file:
+                file.write(generate_qua_script(experiment, self.config.__dict__))
+
+        result = self.execute_program(experiment)
+        return fetch_results(result, instructions.acquisitions.values())
 
     def sweep(self, qubits, couplers, sequence, options, *sweepers):
         if not sequence:

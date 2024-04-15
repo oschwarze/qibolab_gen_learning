@@ -49,6 +49,11 @@ class Wait:
 
 
 @dataclass(frozen=True)
+class Composite:
+    """Instruction that consists of multiple instructions."""
+
+
+@dataclass(frozen=True)
 class Play:
     """Wrapper around :class:`qibolab.pulses.Pulse` for easier translation to
     QUA program.
@@ -328,7 +333,7 @@ class Instructions:
     #        to_shift.extend(qmpulse.next_)
 
     def __iter__(self):
-        return self.instructions
+        return iter(self.instructions)
 
     def play(self, relaxation_time=0):
         """Part of QUA program that plays an arbitrary pulse sequence.
