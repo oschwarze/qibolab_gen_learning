@@ -269,6 +269,7 @@ class QMConfig:
                 "operation": "control",
                 "length": pulse.duration,
                 "waveforms": {"I": serial_i, "Q": serial_q},
+                "digital_marker": "ON",
             }
         elif pulse.type is PulseType.FLUX:
             serial = self.register_waveform(pulse)
