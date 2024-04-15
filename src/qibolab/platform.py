@@ -242,18 +242,10 @@ class Platform:
         results = defaultdict(list)
         bounds = kwargs.get("bounds", self._controller.bounds)
         for b in batch(sequences, bounds):
-            try:
-                result = self._controller.play_sequences(
-                    self.qubits, self.couplers, b, options
-                )
-                for serial, values in result.items():
-                    results[serial].extend(values)
-
-            except NotImplementedError:
-                sequence, readouts = unroll_sequences(b, options.relaxation_time)
-                result = self._execute(sequence, options, **kwargs)
-                for serial, new_serials in readouts.items():
-                    results[serial].extend(result[ser] for ser in new_serials)
+            sequence, readouts = unroll_sequences(b, options.relaxation_time)
+            result = self._execute(sequence, options, **kwargs)
+            for serial, new_serials in readouts.items():
+                results[serial].extend(result[ser] for ser in new_serials)
 
         for serial, qubit in ro_pulses.items():
             results[qubit] = results[serial]
