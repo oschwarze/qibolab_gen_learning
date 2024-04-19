@@ -4,7 +4,7 @@ import json
 import time
 
 import numpy as np
-from qblox_instruments.qcodes_drivers.qcm_qrm import QcmQrm as QbloxQrmQcm
+from qblox_instruments.qcodes_drivers.module import Module as QbloxQrmQcm
 from qibo.config import log
 
 from qibolab.instruments.abstract import Instrument
