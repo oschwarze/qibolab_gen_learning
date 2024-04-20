@@ -19,6 +19,16 @@ calibration when using Octaves.
 """
 
 
+def operation(pulse):
+    """Generate operation name in QM ``config`` for the given pulse."""
+    return str(hash(pulse))
+
+
+def element(pulse):
+    """Generate element name in QM ``config`` for the given pulse."""
+    return pulse.channel
+
+
 def float_serial(x):
     """Convert float to string to use in config keys."""
     return format(x, ".6f").rstrip("0").rstrip(".")
@@ -106,15 +116,18 @@ class QMConfig:
                 will send to this qubit. This frequency will be mixed with the
                 LO connected to the same channel.
         """
-        if f"drive{qubit.name}" not in self.elements:
+        element = qubit.drive.name
+        mixer = f"mixer_{element}"
+
+        if element not in self.elements:
             if isinstance(qubit.drive.port, OPXIQ):
                 lo_frequency = math.floor(qubit.drive.lo_frequency)
-                self.elements[f"drive{qubit.name}"] = {
+                self.elements[element] = {
                     "mixInputs": {
                         "I": qubit.drive.port.i.pair,
                         "Q": qubit.drive.port.q.pair,
                         "lo_frequency": lo_frequency,
-                        "mixer": f"mixer_drive{qubit.name}",
+                        "mixer": mixer,
                     },
                 }
                 drive_g = qubit.mixer_drive_g
@@ -127,24 +140,20 @@ class QMConfig:
                     }
                 ]
             else:
-                self.elements[f"drive{qubit.name}"] = {
+                self.elements[element] = {
                     "RF_inputs": {"port": qubit.drive.port.pair},
                     "digitalInputs": qubit.drive.port.digital_inputs,
                 }
-            self.elements[f"drive{qubit.name}"].update(
+            self.elements[element].update(
                 {
                     "intermediate_frequency": intermediate_frequency,
                     "operations": {},
                 }
             )
         else:
-            self.elements[f"drive{qubit.name}"][
-                "intermediate_frequency"
-            ] = intermediate_frequency
+            self.elements[element]["intermediate_frequency"] = intermediate_frequency
             if isinstance(qubit.drive.port, OPXIQ):
-                self.mixers[f"mixer_drive{qubit.name}"][0][
-                    "intermediate_frequency"
-                ] = intermediate_frequency
+                self.mixers[mixer][0]["intermediate_frequency"] = intermediate_frequency
 
     def register_readout_element(
         self, qubit, intermediate_frequency=0, time_of_flight=0, smearing=0
@@ -157,15 +166,18 @@ class QMConfig:
                 will send to this qubit. This frequency will be mixed with the
                 LO connected to the same channel.
         """
-        if f"readout{qubit.name}" not in self.elements:
+        element = qubit.readout.name
+        mixer = f"mixer_{element}"
+
+        if element not in self.elements:
             if isinstance(qubit.readout.port, OPXIQ):
                 lo_frequency = math.floor(qubit.readout.lo_frequency)
-                self.elements[f"readout{qubit.name}"] = {
+                self.elements[element] = {
                     "mixInputs": {
                         "I": qubit.readout.port.i.pair,
                         "Q": qubit.readout.port.q.pair,
                         "lo_frequency": lo_frequency,
-                        "mixer": f"mixer_readout{qubit.name}",
+                        "mixer": mixer,
                     },
                     "outputs": {
                         "out1": qubit.feedback.port.i.pair,
@@ -174,7 +186,7 @@ class QMConfig:
                 }
                 readout_g = qubit.mixer_readout_g
                 readout_phi = qubit.mixer_readout_phi
-                self.mixers[f"mixer_readout{qubit.name}"] = [
+                self.mixers[mixer] = [
                     {
                         "intermediate_frequency": intermediate_frequency,
                         "lo_frequency": lo_frequency,
@@ -182,13 +194,12 @@ class QMConfig:
                     }
                 ]
             else:
-
-                self.elements[f"readout{qubit.name}"] = {
+                self.elements[element] = {
                     "RF_inputs": {"port": qubit.readout.port.pair},
                     "RF_outputs": {"port": qubit.feedback.port.pair},
                     "digitalInputs": qubit.readout.port.digital_inputs,
                 }
-            self.elements[f"readout{qubit.name}"].update(
+            self.elements[element].update(
                 {
                     "intermediate_frequency": intermediate_frequency,
                     "operations": {},
@@ -197,13 +208,9 @@ class QMConfig:
                 }
             )
         else:
-            self.elements[f"readout{qubit.name}"][
-                "intermediate_frequency"
-            ] = intermediate_frequency
+            self.elements[element]["intermediate_frequency"] = intermediate_frequency
             if isinstance(qubit.readout.port, OPXIQ):
-                self.mixers[f"mixer_readout{qubit.name}"][0][
-                    "intermediate_frequency"
-                ] = intermediate_frequency
+                self.mixers[mixer][0]["intermediate_frequency"] = intermediate_frequency
 
     def register_flux_element(self, qubit, intermediate_frequency=0):
         """Register qubit flux elements and controllers in the QM config.
@@ -214,8 +221,10 @@ class QMConfig:
                 will send to this qubit. This frequency will be mixed with the
                 LO connected to the same channel.
         """
-        if f"flux{qubit.name}" not in self.elements:
-            self.elements[f"flux{qubit.name}"] = {
+        element = qubit.flux.name
+
+        if element not in self.elements:
+            self.elements[element] = {
                 "singleInput": {
                     "port": qubit.flux.port.pair,
                 },
@@ -223,9 +232,7 @@ class QMConfig:
                 "operations": {},
             }
         else:
-            self.elements[f"flux{qubit.name}"][
-                "intermediate_frequency"
-            ] = intermediate_frequency
+            self.elements[element]["intermediate_frequency"] = intermediate_frequency
 
     def register_element(self, qubit, pulse, time_of_flight=0, smearing=0):
         if pulse.type is PulseType.DRIVE:
@@ -246,7 +253,7 @@ class QMConfig:
             # register flux element
             self.register_flux_element(qubit, pulse.frequency)
 
-    def register_pulse(self, pulse, operation, element, qubit):
+    def register_pulse(self, pulse, qubit):
         """Registers pulse, waveforms and integration weights in QM config.
 
         Args:
@@ -259,13 +266,14 @@ class QMConfig:
                 instantiation of the Qubit objects. They are named as
                 "drive0", "drive1", "flux0", "readout0", ...
         """
-        if operation in self.pulses:
-            return
+        op = operation(pulse)
+        if op in self.pulses:
+            return op
 
         if pulse.type is PulseType.DRIVE:
             serial_i = self.register_waveform(pulse, "i")
             serial_q = self.register_waveform(pulse, "q")
-            self.pulses[operation] = {
+            self.pulses[op] = {
                 "operation": "control",
                 "length": pulse.duration,
                 "waveforms": {"I": serial_i, "Q": serial_q},
@@ -273,7 +281,7 @@ class QMConfig:
             }
         elif pulse.type is PulseType.FLUX:
             serial = self.register_waveform(pulse)
-            self.pulses[operation] = {
+            self.pulses[op] = {
                 "operation": "control",
                 "length": pulse.duration,
                 "waveforms": {
@@ -284,7 +292,7 @@ class QMConfig:
             serial_i = self.register_waveform(pulse, "i")
             serial_q = self.register_waveform(pulse, "q")
             self.register_integration_weights(qubit, pulse.duration)
-            self.pulses[operation] = {
+            self.pulses[op] = {
                 "operation": "measurement",
                 "length": pulse.duration,
                 "waveforms": {
@@ -301,7 +309,9 @@ class QMConfig:
         else:
             raise_error(TypeError, f"Unknown pulse type {pulse.type.name}.")
 
-        self.elements[element]["operations"][operation] = operation
+        el = element(pulse)
+        self.elements[el]["operations"][op] = op
+        return op
 
     def register_waveform(self, pulse, mode="i"):
         """Registers waveforms in QM config.
@@ -328,7 +338,7 @@ class QMConfig:
         phase = (pulse.relative_phase % (2 * np.pi)) / (2 * np.pi)
         amplitude = float_serial(pulse.amplitude)
         phase_str = float_serial(phase)
-        if isinstance(pulse.shape, Rectangular):
+        if isinstance(pulse.envelope, Rectangular):
             serial = f"constant_wf({amplitude}, {phase_str})"
             if serial not in self.waveforms:
                 if mode == "i":
@@ -337,10 +347,10 @@ class QMConfig:
                     sample = pulse.amplitude * np.sin(phase)
                 self.waveforms[serial] = {"type": "constant", "sample": sample}
         else:
-            serial = f"{mode}({pulse.duration}, {amplitude}, {phase_str}, {str(pulse.shape)})"
+            serial = f"{hash(pulse)}_{mode}"
             if serial not in self.waveforms:
-                samples_i = pulse.envelope_waveform_i(SAMPLING_RATE).data
-                samples_q = pulse.envelope_waveform_q(SAMPLING_RATE).data
+                samples_i = pulse.i(SAMPLING_RATE)
+                samples_q = pulse.q(SAMPLING_RATE)
                 if mode == "i":
                     samples = samples_i * np.cos(phase) - samples_q * np.sin(phase)
                 else:
