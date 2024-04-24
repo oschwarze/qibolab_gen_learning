@@ -4,12 +4,9 @@ from typing import Optional, Union
 from .execution_parameters import AcquisitionType
 
 """
-Channel is an abstract concept that defines an interface in front of various instrument drivers in qibolab, without
-exposing instrument specific implementation details. For the users of this interface a quantum computer is just a
-predefined set of channels where they can send signals or receive signals/data from. Users do not have control over what
-channels exist - it is determined by the setup of a certain quantum computer. However, users have control over some
-configuration parameters. A typical use case is to configure some channels with desired parameters and request an
-execution of a synchronized pulse sequence that implements a certain computation or a calibration experiment.
+Channel is an abstract concept that defines means of communication between users and a quantum computer. A quantum
+computer can be perceived as just a set of channels where signals can be sent to or received from. Users can view and
+calibrate certain properties of channels. This module defines common configuration options for channels.
 """
 
 
