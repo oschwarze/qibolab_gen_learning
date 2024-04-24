@@ -10,7 +10,7 @@ from qblox_instruments.qcodes_drivers.cluster import Cluster
 from qblox_instruments.qcodes_drivers.module import Module
 from qibo.config import log
 
-from qibolab.pulses import Pulse, PulseSequence, PulseType
+from qibolab.pulses import ControlSequence, Pulse, PulseType
 from qibolab.sweeper import Parameter, Sweeper, SweeperType
 
 from .acquisition import AveragedAcquisition, DemodulatedAcquisition
@@ -338,7 +338,7 @@ class QrmRf(ClusterModule):
     def process_pulse_sequence(
         self,
         qubits: dict,
-        instrument_pulses: PulseSequence,
+        instrument_pulses: ControlSequence,
         navgs: int,
         nshots: int,
         repetition_duration: int,
@@ -374,7 +374,7 @@ class QrmRf(ClusterModule):
             - intrument parameters cache
 
         Args:
-            instrument_pulses (PulseSequence): A collection of Pulse objects to be played by the instrument.
+            instrument_pulses (ControlSequence): A collection of Pulse objects to be played by the instrument.
             navgs (int): The number of times the sequence of pulses should be executed averaging the results.
             nshots (int): The number of times the sequence of pulses should be executed without averaging.
             repetition_duration (int): The total duration of the pulse sequence execution plus the reset/relaxation time.
@@ -410,14 +410,16 @@ class QrmRf(ClusterModule):
         port_channel = [
             chan.name for chan in self.channel_map.values() if chan.port.name == port
         ]
-        port_pulses: PulseSequence = instrument_pulses.get_channel_pulses(*port_channel)
+        port_pulses: ControlSequence = instrument_pulses.get_channel_pulses(
+            *port_channel
+        )
 
         # initialise the list of sequencers required by the port
         self._sequencers[port] = []
 
         if not port_pulses.is_empty:
             # split the collection of port pulses in non overlapping pulses
-            non_overlapping_pulses: PulseSequence
+            non_overlapping_pulses: ControlSequence
             for non_overlapping_pulses in port_pulses.separate_overlapping_pulses():
                 # each set of not overlapping pulses will be played by a separate sequencer
                 # check sequencer availability

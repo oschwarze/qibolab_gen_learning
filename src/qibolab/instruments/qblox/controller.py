@@ -11,7 +11,7 @@ from qibolab.instruments.qblox.cluster_qcm_bb import QcmBb
 from qibolab.instruments.qblox.cluster_qcm_rf import QcmRf
 from qibolab.instruments.qblox.cluster_qrm_rf import QrmRf
 from qibolab.instruments.qblox.sequencer import SAMPLING_RATE
-from qibolab.pulses import PulseSequence, PulseType
+from qibolab.pulses import ControlSequence, PulseType
 from qibolab.result import SampleResults
 from qibolab.sweeper import Parameter, Sweeper, SweeperType
 from qibolab.unrolling import Bounds
@@ -120,7 +120,7 @@ class QbloxController(Controller):
     def _execute_pulse_sequence(
         self,
         qubits: dict,
-        sequence: PulseSequence,
+        sequence: ControlSequence,
         options: ExecutionParameters,
         sweepers: list() = [],  # list(Sweeper) = []
         **kwargs,
@@ -131,7 +131,7 @@ class QbloxController(Controller):
         """Executes a sequence of pulses or a sweep.
 
         Args:
-            sequence (:class:`qibolab.pulses.PulseSequence`): The sequence of pulses to execute.
+            sequence (:class:`qibolab.pulses.ControlSequence`): The sequence of pulses to execute.
             options (:class:`qibolab.platforms.platform.ExecutionParameters`): Object holding the execution options.
             sweepers (list(Sweeper)): A list of Sweeper objects defining parameter sweeps.
         """
@@ -234,7 +234,7 @@ class QbloxController(Controller):
         self,
         qubits: dict,
         couplers: dict,
-        sequence: PulseSequence,
+        sequence: ControlSequence,
         options: ExecutionParameters,
         *sweepers,
     ):
@@ -242,7 +242,7 @@ class QbloxController(Controller):
 
         The parameters to be swept are defined in :class:`qibolab.sweeper.Sweeper` object.
         Args:
-            sequence (:class:`qibolab.pulses.PulseSequence`): The sequence of pulses to execute.
+            sequence (:class:`qibolab.pulses.ControlSequence`): The sequence of pulses to execute.
             options (:class:`qibolab.platforms.platform.ExecutionParameters`): Object holding the execution options.
             sweepers (list(Sweeper)): A list of Sweeper objects defining parameter sweeps.
         """
@@ -316,7 +316,7 @@ class QbloxController(Controller):
         """Executes a sweep recursively.
 
         Args:
-            sequence (:class:`qibolab.pulses.PulseSequence`): The sequence of pulses to execute.
+            sequence (:class:`qibolab.pulses.ControlSequence`): The sequence of pulses to execute.
             sweepers (list(Sweeper)): A list of Sweeper objects defining parameter sweeps.
             results (:class:`qibolab.results.ExecutionResults`): A results object to update with the reults of the execution.
             nshots (int): The number of times the sequence of pulses should be executed.

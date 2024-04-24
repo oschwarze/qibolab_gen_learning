@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from qibolab import AcquisitionType, AveragingMode, ExecutionParameters, create_platform
-from qibolab.pulses import Delay, GaussianSquare, Pulse, PulseSequence, PulseType
+from qibolab.pulses import ControlSequence, Delay, GaussianSquare, Pulse, PulseType
 from qibolab.qubits import QubitPair
 from qibolab.serialize_ import replace
 from qibolab.sweeper import ChannelParameter, Parameter, Sweeper
@@ -26,7 +26,7 @@ def test_dummy_execute_pulse_sequence(name, acquisition):
     nshots = 100
     platform = create_platform(name)
     ro_pulse = platform.create_MZ_pulse(0)
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_MZ_pulse(0))
     sequence.append(platform.create_RX12_pulse(0))
     options = ExecutionParameters(nshots=100, acquisition_type=acquisition)
@@ -39,7 +39,7 @@ def test_dummy_execute_pulse_sequence(name, acquisition):
 
 def test_dummy_execute_coupler_pulse():
     platform = create_platform("dummy_couplers")
-    sequence = PulseSequence()
+    sequence = ControlSequence()
 
     pulse = platform.create_coupler_pulse(coupler=0)
     sequence.append(pulse)
@@ -53,7 +53,7 @@ def test_dummy_execute_pulse_sequence_couplers():
     qubit_ordered_pair = QubitPair(
         platform.qubits[1], platform.qubits[2], platform.couplers[1]
     )
-    sequence = PulseSequence()
+    sequence = ControlSequence()
 
     cz = platform.create_CZ_pulse_sequence(
         qubits=(qubit_ordered_pair.qubit1.name, qubit_ordered_pair.qubit2.name),
@@ -72,7 +72,7 @@ def test_dummy_execute_pulse_sequence_couplers():
 @pytest.mark.parametrize("name", PLATFORM_NAMES)
 def test_dummy_execute_pulse_sequence_fast_reset(name):
     platform = create_platform(name)
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_MZ_pulse(0))
     options = ExecutionParameters(nshots=None, fast_reset=True)
     result = platform.execute_pulse_sequence(sequence, options)
@@ -89,7 +89,7 @@ def test_dummy_execute_pulse_sequence_unrolling(name, acquisition, batch_size):
     platform = create_platform(name)
     platform.instruments["dummy"].UNROLLING_BATCH_SIZE = batch_size
     sequences = []
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_MZ_pulse(0))
     for _ in range(nsequences):
         sequences.append(sequence)
@@ -106,7 +106,7 @@ def test_dummy_execute_pulse_sequence_unrolling(name, acquisition, batch_size):
 @pytest.mark.parametrize("name", PLATFORM_NAMES)
 def test_dummy_single_sweep_raw(name):
     platform = create_platform(name)
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     pulse = platform.create_MZ_pulse(qubit=0)
 
     parameter_range = np.random.randint(SWEPT_POINTS, size=SWEPT_POINTS)
@@ -136,7 +136,7 @@ def test_dummy_single_sweep_coupler(
     fast_reset, parameter, average, acquisition, nshots
 ):
     platform = create_platform("dummy_couplers")
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     ro_pulse = platform.create_MZ_pulse(qubit=0)
     coupler_pulse = Pulse.flux(
         duration=40,
@@ -190,7 +190,7 @@ def test_dummy_single_sweep_coupler(
 @pytest.mark.parametrize("nshots", [10, 20])
 def test_dummy_single_sweep(name, fast_reset, parameter, average, acquisition, nshots):
     platform = create_platform(name)
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     pulse = platform.create_MZ_pulse(qubit=0)
     if parameter is Parameter.amplitude:
         parameter_range = np.random.rand(SWEPT_POINTS)
@@ -236,7 +236,7 @@ def test_dummy_single_sweep(name, fast_reset, parameter, average, acquisition, n
 @pytest.mark.parametrize("nshots", [10, 20])
 def test_dummy_double_sweep(name, parameter1, parameter2, average, acquisition, nshots):
     platform = create_platform(name)
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     pulse = platform.create_qubit_drive_pulse(qubit=0, duration=1000)
     ro_pulse = platform.create_MZ_pulse(qubit=0)
     sequence.append(pulse)
@@ -303,7 +303,7 @@ def test_dummy_double_sweep(name, parameter1, parameter2, average, acquisition, 
 @pytest.mark.parametrize("nshots", [10, 20])
 def test_dummy_single_sweep_multiplex(name, parameter, average, acquisition, nshots):
     platform = create_platform(name)
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     ro_pulses = {}
     for qubit in platform.qubits:
         ro_pulses[qubit] = platform.create_qubit_readout_pulse(qubit=qubit)

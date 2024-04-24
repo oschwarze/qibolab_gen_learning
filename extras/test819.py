@@ -9,14 +9,14 @@ from qibolab.execution_parameters import (
 )
 from qibolab.instruments.qblox.controller import QbloxController
 from qibolab.platform import NS_TO_SEC
-from qibolab.pulses import PulseSequence
+from qibolab.pulses import ControlSequence
 from qibolab.sweeper import Parameter, Sweeper, SweeperType
 
 GlobalBackend.set_backend("qibolab", "spinq10q")
 platform: Platform = GlobalBackend().platform
 controller: QbloxController = platform.instruments["qblox_controller"]
 
-sequence = PulseSequence()
+sequence = ControlSequence()
 ro_pulses = {}
 
 qid = 0

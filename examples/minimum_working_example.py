@@ -1,9 +1,9 @@
 from qibolab import create_platform
 from qibolab.paths import qibolab_folder
-from qibolab.pulses import Pulse, PulseSequence, ReadoutPulse
+from qibolab.pulses import ControlSequence, Pulse, ReadoutPulse
 
 # Define PulseSequence
-sequence = PulseSequence()
+sequence = ControlSequence()
 # Add some pulses to the pulse sequence
 sequence.append(
     Pulse(

@@ -3,8 +3,8 @@
 from collections import defaultdict
 
 
-class PulseSequence(defaultdict):
-    """Synchronized sequence of pulses across multiple channels.
+class ControlSequence(defaultdict):
+    """Synchronized sequence of control instructions across multiple channels.
 
     The keys are names of channels, and the values are lists of pulses
     and delays
@@ -22,7 +22,7 @@ class PulseSequence(defaultdict):
 
         return max((channel_duration(ch) for ch in self), default=0)
 
-    def __add__(self, other: "PulseSequence") -> "PulseSequence":
+    def __add__(self, other: "ControlSequence") -> "ControlSequence":
         """Create a PulseSequence which is self + necessary delays to
         synchronize channels + other."""
         # TODO: implement

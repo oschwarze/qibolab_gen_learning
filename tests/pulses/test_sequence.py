@@ -1,16 +1,16 @@
 from qibolab.pulses import (
+    ControlSequence,
     Delay,
     Drag,
     Gaussian,
     Pulse,
-    PulseSequence,
     PulseType,
     Rectangular,
 )
 
 
 def test_add_readout():
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(
         Pulse(
             frequency=200_000_000,
@@ -101,7 +101,7 @@ def test_get_qubit_pulses():
         duration=400, amplitude=0.9, envelope=Rectangular(), channel="40", qubit=2
     )
 
-    ps = PulseSequence([p1, p2, p3, p4, p5, p6, p7])
+    ps = ControlSequence([p1, p2, p3, p4, p5, p6, p7])
     assert ps.qubits == [0, 1, 2]
     assert len(ps.get_qubit_pulses(0)) == 2
     assert len(ps.get_qubit_pulses(1)) == 4
@@ -155,7 +155,7 @@ def test_get_channel_pulses():
         channel="30",
     )
 
-    ps = PulseSequence([p1, p2, p3, p4, p5, p6])
+    ps = ControlSequence([p1, p2, p3, p4, p5, p6])
     assert sorted(ps.channels) == ["10", "20", "30"]
     assert len(ps.get_channel_pulses("10")) == 1
     assert len(ps.get_channel_pulses("20")) == 2
@@ -181,7 +181,7 @@ def test_sequence_duration():
         channel="1",
         type=PulseType.READOUT,
     )
-    ps = PulseSequence([p0, p1]) + [p2]
+    ps = ControlSequence([p0, p1]) + [p2]
     assert ps.duration == 20 + 40 + 1000
     ps[-1] = p2.model_copy(update={"channel": "2"})
     assert ps.duration == 1000
@@ -213,16 +213,16 @@ def test_init():
         type=PulseType.DRIVE,
     )
 
-    ps = PulseSequence()
-    assert type(ps) == PulseSequence
+    ps = ControlSequence()
+    assert type(ps) == ControlSequence
 
-    ps = PulseSequence([p1, p2, p3])
+    ps = ControlSequence([p1, p2, p3])
     assert len(ps) == 3
     assert ps[0] == p1
     assert ps[1] == p2
     assert ps[2] == p3
 
-    other_ps = PulseSequence([p1, p2, p3])
+    other_ps = ControlSequence([p1, p2, p3])
     assert len(other_ps) == 3
     assert other_ps[0] == p1
     assert other_ps[1] == p2
@@ -236,7 +236,7 @@ def test_init():
 
 
 def test_operators():
-    ps = PulseSequence()
+    ps = ControlSequence()
     ps += [
         Pulse(
             duration=200,
@@ -293,7 +293,7 @@ def test_operators():
         type=PulseType.DRIVE,
     )
 
-    another_ps = PulseSequence()
+    another_ps = ControlSequence()
     another_ps.append(p4)
     another_ps.extend([p5, p6])
 
@@ -316,7 +316,7 @@ def test_operators():
         channel="1",
         type=PulseType.DRIVE,
     )
-    yet_another_ps = PulseSequence([p7])
+    yet_another_ps = ControlSequence([p7])
     assert len(yet_another_ps) == 1
     yet_another_ps *= 3
     assert len(yet_another_ps) == 3
@@ -339,5 +339,5 @@ def test_operators():
         channel="2",
         type=PulseType.DRIVE,
     )
-    and_yet_another_ps = 2 * PulseSequence([p9]) + [p8] * 3
+    and_yet_another_ps = 2 * ControlSequence([p9]) + [p8] * 3
     assert len(and_yet_another_ps) == 5

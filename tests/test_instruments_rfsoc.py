@@ -15,7 +15,14 @@ from qibolab.instruments.rfsoc.convert import (
     replace_pulse_shape,
 )
 from qibolab.platform import Qubit
-from qibolab.pulses import Drag, Gaussian, Pulse, PulseSequence, PulseType, Rectangular
+from qibolab.pulses import (
+    ControlSequence,
+    Drag,
+    Gaussian,
+    Pulse,
+    PulseType,
+    Rectangular,
+)
 from qibolab.result import (
     AveragedIntegratedResults,
     AveragedSampleResults,
@@ -31,7 +38,7 @@ def test_convert_default(dummy_qrc):
     platform = create_platform("rfsoc")
     integer = 12
     qubits = platform.qubits
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(Pulse(0, 40, 0.9, 50e6, 0, Drag(5, 2), 0, PulseType.DRIVE, 0))
     parameter = Parameter.frequency
 
@@ -196,7 +203,7 @@ def test_convert_units_sweeper(dummy_qrc):
     qubit.feedback.ports = [("name", 1)]
     qubit.readout.local_oscillator.frequency = 1e6
 
-    seq = PulseSequence()
+    seq = ControlSequence()
     pulse0 = Pulse(0, 40, 0.9, 50e6, 0, Gaussian(2), 0, PulseType.DRIVE, 0)
     pulse1 = Pulse(40, 40, 0.9, 50e6, 0, Rectangular(), 0, PulseType.READOUT, 0)
     seq.append(pulse0)
@@ -264,7 +271,7 @@ def test_convert_sweep(dummy_qrc):
     qubit.drive.ports = [("name", 4)]
     qubit.readout.ports = [("name", 2)]
 
-    seq = PulseSequence()
+    seq = ControlSequence()
     pulse0 = Pulse(0, 40, 0.9, 50e6, 0, Gaussian(2), 0, PulseType.DRIVE, 0)
     pulse1 = Pulse(40, 40, 0.9, 50e6, 0, Rectangular(), 0, PulseType.READOUT, 0)
     seq.append(pulse0)
@@ -374,7 +381,7 @@ def test_play(mocker, dummy_qrc):
     platform = create_platform("rfsoc")
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    seq = PulseSequence()
+    seq = ControlSequence()
     pulse0 = Pulse(0, 40, 0.9, 50e6, 0, Gaussian(2), 0, PulseType.DRIVE, 0)
     pulse1 = Pulse(40, 40, 0.9, 50e6, 0, Rectangular(), 0, PulseType.READOUT, 0)
     seq.append(pulse0)
@@ -415,7 +422,7 @@ def test_sweep(mocker, dummy_qrc):
     qubit.flux.offset = 0.05
     qubit.flux.ports = [("name", 4)]
 
-    seq = PulseSequence()
+    seq = ControlSequence()
     pulse0 = Pulse(0, 40, 0.9, 50e6, 0, Gaussian(2), 0, PulseType.DRIVE, 0)
     pulse1 = Pulse(40, 40, 0.9, 50e6, 0, Rectangular(), 0, PulseType.READOUT, 0)
     seq.append(pulse0)
@@ -465,7 +472,7 @@ def test_validate_input_command(dummy_qrc):
     platform = create_platform("rfsoc")
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    seq = PulseSequence()
+    seq = ControlSequence()
     pulse0 = Pulse(0, 40, 0.9, 50e6, 0, Gaussian(2), 0, PulseType.DRIVE, 0)
     pulse1 = Pulse(40, 40, 0.9, 50e6, 0, Rectangular(), 0, PulseType.READOUT, 0)
     seq.append(pulse0)
@@ -484,7 +491,7 @@ def test_update_cfg(mocker, dummy_qrc):
     platform = create_platform("rfsoc")
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    seq = PulseSequence()
+    seq = ControlSequence()
     pulse0 = Pulse(0, 40, 0.9, 50e6, 0, Gaussian(2), 0, PulseType.DRIVE, 0)
     pulse1 = Pulse(40, 40, 0.9, 50e6, 0, Rectangular(), 0, PulseType.READOUT, 0)
     seq.append(pulse0)
@@ -579,7 +586,7 @@ def test_get_if_python_sweep(dummy_qrc):
     platform = create_platform("rfsoc")
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    sequence_1 = PulseSequence()
+    sequence_1 = ControlSequence()
     sequence_1.append(platform.create_RX_pulse(qubit=0, start=0))
     sequence_1.append(platform.create_MZ_pulse(qubit=0, start=100))
 
@@ -606,7 +613,7 @@ def test_get_if_python_sweep(dummy_qrc):
     assert not instrument.get_if_python_sweep(sequence_1, sweep1)
     assert not instrument.get_if_python_sweep(sequence_1, sweep3)
 
-    sequence_2 = PulseSequence()
+    sequence_2 = ControlSequence()
     sequence_2.append(platform.create_RX_pulse(qubit=0, start=0))
 
     sweep1 = Sweeper(
@@ -629,7 +636,7 @@ def test_get_if_python_sweep(dummy_qrc):
     platform = create_platform("rfsoc")
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    sequence_1 = PulseSequence()
+    sequence_1 = ControlSequence()
     sequence_1.append(platform.create_RX_pulse(qubit=0, start=0))
     sweep1 = Sweeper(
         parameter=Parameter.frequency,
@@ -664,7 +671,7 @@ def test_convert_av_sweep_results(dummy_qrc):
     platform = create_platform("rfsoc")
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_RX_pulse(qubit=0, start=0))
     sequence.append(platform.create_MZ_pulse(qubit=0, start=100))
     sequence.append(platform.create_MZ_pulse(qubit=0, start=200))
@@ -717,7 +724,7 @@ def test_convert_nav_sweep_results(dummy_qrc):
     platform = create_platform("rfsoc")
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_RX_pulse(qubit=0, start=0))
     sequence.append(platform.create_MZ_pulse(qubit=0, start=100))
     sequence.append(platform.create_MZ_pulse(qubit=0, start=200))
@@ -777,7 +784,7 @@ def test_call_executepulsesequence(connected_platform, instrument):
     platform = connected_platform
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_RX_pulse(qubit=0, start=0))
     sequence.append(platform.create_MZ_pulse(qubit=0, start=100))
 
@@ -805,7 +812,7 @@ def test_call_execute_sweeps(connected_platform, instrument):
     platform = connected_platform
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_RX_pulse(qubit=0, start=0))
     sequence.append(platform.create_MZ_pulse(qubit=0, start=100))
     sweep = Sweeper(
@@ -836,7 +843,7 @@ def test_play_qpu(connected_platform, instrument):
     platform = connected_platform
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_RX_pulse(qubit=0, start=0))
     sequence.append(platform.create_MZ_pulse(qubit=0, start=100))
 
@@ -858,7 +865,7 @@ def test_sweep_qpu(connected_platform, instrument):
     platform = connected_platform
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_RX_pulse(qubit=0, start=0))
     sequence.append(platform.create_MZ_pulse(qubit=0, start=100))
     sweep = Sweeper(
@@ -908,7 +915,7 @@ def test_python_reqursive_sweep(connected_platform, instrument):
     platform = connected_platform
     instrument = platform.instruments["tii_rfsoc4x2"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_RX_pulse(qubit=0, start=0))
     sequence.append(platform.create_MZ_pulse(qubit=0, start=100))
     sweep1 = Sweeper(

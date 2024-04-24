@@ -4,13 +4,13 @@ import pathlib
 import numpy as np
 
 from qibolab.pulses import (
+    ControlSequence,
     Drag,
     ECap,
     Gaussian,
     GaussianSquare,
     Iir,
     Pulse,
-    PulseSequence,
     PulseType,
     Rectangular,
     Snz,
@@ -77,7 +77,7 @@ def test_plot_functions():
         type=PulseType.DRIVE,
         qubit=2,
     )
-    ps = PulseSequence([p0, p1, p2, p3, p4, p5, p6])
+    ps = ControlSequence([p0, p1, p2, p3, p4, p5, p6])
     envelope = p0.envelopes(SAMPLING_RATE)
     wf = modulate(np.array(envelope), 0.0, rate=SAMPLING_RATE)
 

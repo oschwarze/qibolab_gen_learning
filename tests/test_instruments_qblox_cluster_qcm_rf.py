@@ -4,7 +4,7 @@ import pytest
 from qibolab.instruments.abstract import Instrument
 from qibolab.instruments.qblox.cluster_qcm_rf import QcmRf
 from qibolab.instruments.qblox.port import QbloxOutputPort
-from qibolab.pulses import PulseSequence
+from qibolab.pulses import ControlSequence
 from qibolab.sweeper import Parameter, Sweeper, SweeperType
 
 from .qblox_fixtures import connected_controller, controller
@@ -150,7 +150,7 @@ def test_connect(connected_qcm_rf: QcmRf):
 
 @pytest.mark.qpu
 def test_pulse_sequence(connected_platform, connected_qcm_rf: QcmRf):
-    ps = PulseSequence()
+    ps = ControlSequence()
     ps.append(
         DrivePulse(
             0,
@@ -188,7 +188,7 @@ def test_pulse_sequence(connected_platform, connected_qcm_rf: QcmRf):
 
 @pytest.mark.qpu
 def test_sweepers(connected_platform, connected_qcm_rf: QcmRf):
-    ps = PulseSequence()
+    ps = ControlSequence()
     ps.append(
         DrivePulse(
             0,

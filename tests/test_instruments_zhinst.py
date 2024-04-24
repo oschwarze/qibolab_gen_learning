@@ -16,11 +16,11 @@ from qibolab.instruments.zhinst import (
     measure_channel_name,
 )
 from qibolab.pulses import (
+    ControlSequence,
     Drag,
     Gaussian,
     Iir,
     Pulse,
-    PulseSequence,
     PulseType,
     Rectangular,
     Snz,
@@ -309,7 +309,7 @@ def test_zhsequence(dummy_qrc):
         PulseType.READOUT,
         qubit=0,
     )
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(qd_pulse)
     sequence.append(qd_pulse)
     sequence.append(ro_pulse)
@@ -349,7 +349,7 @@ def test_zhsequence_couplers(dummy_qrc):
         0, 40, 0.05, Rectangular(), channel=couplerflux_channel, qubit=3
     )
     qc_pulse.type = PulseType.COUPLERFLUX
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(qd_pulse)
     sequence.append(ro_pulse)
     sequence.append(qc_pulse)
@@ -363,7 +363,7 @@ def test_zhsequence_couplers(dummy_qrc):
 def test_zhsequence_multiple_ro(dummy_qrc):
     platform = create_platform("zurich")
     readout_channel = measure_channel_name(platform.qubits[0])
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     qd_pulse = Pulse(0, 40, 0.05, int(3e9), 0.0, Rectangular(), "ch0", qubit=0)
     sequence.append(qd_pulse)
     ro_pulse = Pulse(
@@ -443,7 +443,7 @@ def test_experiment_flow(dummy_qrc):
     platform = create_platform("zurich")
     IQM5q = platform.instruments["EL_ZURO"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     qubits = {0: platform.qubits[0], 2: platform.qubits[2]}
     platform.qubits = qubits
     couplers = {}
@@ -481,7 +481,7 @@ def test_experiment_flow_coupler(dummy_qrc):
     platform = create_platform("zurich")
     IQM5q = platform.instruments["EL_ZURO"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     qubits = {0: platform.qubits[0], 2: platform.qubits[2]}
     platform.qubits = qubits
     couplers = {0: platform.couplers[0]}
@@ -535,7 +535,7 @@ def test_sweep_and_play_sim(dummy_qrc):
     platform = create_platform("zurich")
     IQM5q = platform.instruments["EL_ZURO"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     qubits = {0: platform.qubits[0], 2: platform.qubits[2]}
     platform.qubits = qubits
     couplers = {}
@@ -592,7 +592,7 @@ def test_experiment_sweep_single(dummy_qrc, parameter1):
     couplers = {}
 
     swept_points = 5
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     ro_pulses = {}
     qd_pulses = {}
     for qubit in qubits:
@@ -634,7 +634,7 @@ def test_experiment_sweep_single_coupler(dummy_qrc, parameter1):
     couplers = {0: platform.couplers[0]}
 
     swept_points = 5
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     ro_pulses = {}
     qd_pulses = {}
     for qubit in qubits:
@@ -700,7 +700,7 @@ def test_experiment_sweep_2d_general(dummy_qrc, parameter1, parameter2):
     couplers = {}
 
     swept_points = 5
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     ro_pulses = {}
     qd_pulses = {}
     for qubit in qubits:
@@ -757,7 +757,7 @@ def test_experiment_sweep_2d_specific(dummy_qrc):
     couplers = {}
 
     swept_points = 5
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     ro_pulses = {}
     qd_pulses = {}
     for qubit in qubits:
@@ -821,7 +821,7 @@ def test_experiment_sweep_punchouts(dummy_qrc, parameter):
         parameter2 = Parameter.frequency
 
     swept_points = 5
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     ro_pulses = {}
     for qubit in qubits:
         ro_pulses[qubit] = platform.create_qubit_readout_pulse(qubit, start=0)
@@ -864,7 +864,7 @@ def test_batching(dummy_qrc):
     platform = create_platform("zurich")
     instrument = platform.instruments["EL_ZURO"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     sequence.append(platform.create_RX_pulse(0, start=0))
     sequence.append(platform.create_RX_pulse(1, start=0))
     measurement_start = sequence.finish
@@ -894,7 +894,7 @@ def test_connections(instrument):
 @pytest.mark.qpu
 def test_experiment_execute_pulse_sequence_qpu(connected_platform, instrument):
     platform = connected_platform
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     qubits = {0: platform.qubits[0], "c0": platform.qubits["c0"]}
     platform.qubits = qubits
 
@@ -936,7 +936,7 @@ def test_experiment_sweep_2d_specific_qpu(connected_platform, instrument):
     qubits = {0: platform.qubits[0]}
 
     swept_points = 5
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     ro_pulses = {}
     qd_pulses = {}
     for qubit in qubits:
@@ -1006,7 +1006,7 @@ def test_experiment_measurement_sequence(dummy_qrc):
     platform = create_platform("zurich")
     IQM5q = platform.instruments["EL_ZURO"]
 
-    sequence = PulseSequence()
+    sequence = ControlSequence()
     qubits = {0: platform.qubits[0]}
     platform.qubits = qubits
     couplers = {}

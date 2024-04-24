@@ -8,7 +8,7 @@ import numpy as np
 from .envelope import Waveform
 from .modulation import modulate
 from .pulse import Delay, Pulse
-from .sequence import PulseSequence
+from .sequence import ControlSequence
 
 SAMPLING_RATE = 1
 """Default sampling rate in gigasamples per second (GSps).
@@ -120,7 +120,7 @@ def pulse(pulse_: Pulse, filename=None):
     plt.close()
 
 
-def sequence(ps: PulseSequence, filename=None):
+def sequence(ps: ControlSequence, filename=None):
     """Plot the sequence of pulses.
 
     Args:
