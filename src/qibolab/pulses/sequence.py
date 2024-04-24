@@ -2,6 +2,8 @@
 
 from collections import defaultdict
 
+from pulse import PulseType
+
 
 class ControlSequence(defaultdict):
     """Synchronized sequence of control instructions across multiple channels.
@@ -14,13 +16,23 @@ class ControlSequence(defaultdict):
         super().__init__(list)
 
     @property
+    def ro_pulses(self):
+        """A new sequence containing only its readout pulses."""
+        pulses = []
+        for seq in self.values():
+            for pulse in seq:
+                if pulse.type == PulseType.READOUT:
+                    pulses.append(pulse)
+        return pulses
+
+    @property
     def duration(self) -> int:
-        """The time when the last pulse of the sequence finishes."""
+        """Duration of the entire sequence."""
+        return max((self.channel_duration(ch) for ch in self), default=0)
 
-        def channel_duration(ch: str):
-            return sum(item.duration for item in self[ch])
-
-        return max((channel_duration(ch) for ch in self), default=0)
+    def channel_duration(self, channel: str) -> float:
+        """Duration of the given channel."""
+        return sum(item.duration for item in self[channel])
 
     def __add__(self, other: "ControlSequence") -> "ControlSequence":
         """Create a PulseSequence which is self + necessary delays to

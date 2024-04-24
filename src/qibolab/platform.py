@@ -45,17 +45,16 @@ def unroll_sequences(
     readout_map = defaultdict(list)
     channels = {pulse.channel for sequence in sequences for pulse in sequence}
     for sequence in sequences:
-        total_sequence.extend(sequence)
+        total_sequence += sequence
         # TODO: Fix unrolling results
         for pulse in sequence:
             if pulse.type is PulseType.READOUT:
                 readout_map[pulse.id].append(pulse.id)
 
         length = sequence.duration + relaxation_time
-        pulses_per_channel = sequence.pulses_per_channel
         for channel in channels:
-            delay = length - pulses_per_channel[channel].duration
-            total_sequence.append(Delay(duration=delay, channel=channel))
+            delay = length - sequence.channel_duration(channel)
+            total_sequence[channel].append(Delay(duration=delay, channel=channel))
 
     return total_sequence, readout_map
 
@@ -169,7 +168,7 @@ class Platform:
                             channel = getattr(
                                 self.qubits[pulse.qubit], pulse.type.name.lower()
                             ).name
-                        new_sequence.append(replace(pulse, channel=channel))
+                        new_sequence[channel].append(pulse)
                     setattr(gates, fld.name, new_sequence)
 
     def __str__(self):
@@ -366,9 +365,6 @@ class Platform:
                 if isinstance(new_result, dict):
                     result.update(new_result)
         return result
-
-    def __call__(self, sequence, options):
-        return self.execute_pulse_sequence(sequence, options)
 
     def get_qubit(self, qubit):
         """Return the name of the physical qubit corresponding to a logical
