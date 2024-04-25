@@ -2,7 +2,7 @@
 
 import pytest
 
-from qibolab.pulses import ControlSequence, Drag, Pulse, PulseType, Rectangular
+from qibolab.pulses import Drag, Pulse, PulseSequence, PulseType, Rectangular
 from qibolab.unrolling import Bounds, batch
 
 
@@ -57,7 +57,7 @@ def test_bounds_update():
         type=PulseType.READOUT,
     )
 
-    ps = ControlSequence([p1, p2, p3, p4, p5, p6])
+    ps = PulseSequence([p1, p2, p3, p4, p5, p6])
     bounds = Bounds.update(ps)
 
     assert bounds.waveforms >= 40
@@ -143,7 +143,7 @@ def test_batch(bounds):
         type=PulseType.READOUT,
     )
 
-    ps = ControlSequence([p1, p2, p3, p4, p5, p6])
+    ps = PulseSequence([p1, p2, p3, p4, p5, p6])
 
     sequences = 10 * [ps]
 

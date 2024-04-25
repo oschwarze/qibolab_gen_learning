@@ -4,7 +4,7 @@ import numpy as np
 from qblox_instruments.qcodes_drivers.sequencer import Sequencer as QbloxSequencer
 
 from qibolab.instruments.qblox.q1asm import Program
-from qibolab.pulses import ControlSequence, Pulse, PulseType
+from qibolab.pulses import Pulse, PulseSequence, PulseType
 from qibolab.pulses.modulation import modulate
 from qibolab.sweeper import Parameter, Sweeper
 
@@ -205,7 +205,7 @@ class Sequencer:
             object. It can be used to access other features not directly exposed by this wrapper.
             https://qblox-qblox-instruments.readthedocs-hosted.com/en/master/documentation/sequencer.html
         number (int): An integer between 0 and 5 that identifies the number of the sequencer.
-        pulses (ControlSequence): The sequence of pulses to be played by the sequencer.
+        pulses (PulseSequence): The sequence of pulses to be played by the sequencer.
         waveforms_buffer (WaveformsBuffer): A buffer of unique waveforms to be played by the sequencer.
         waveforms (dict): A dictionary containing the waveforms to be played by the sequencer in qblox format.
         acquisitions (dict): A dictionary containing the list of acquisitions to be made by the sequencer in qblox
@@ -226,7 +226,7 @@ class Sequencer:
 
         self.device: QbloxSequencer = None
         self.number: int = number
-        self.pulses: ControlSequence = ControlSequence()
+        self.pulses: PulseSequence = PulseSequence()
         self.waveforms_buffer: WaveformsBuffer = WaveformsBuffer()
         self.waveforms: dict = {}
         self.acquisitions: dict = {}

@@ -14,7 +14,7 @@ from qibolab.execution_parameters import (
 )
 from qibolab.instruments.abstract import Controller
 from qibolab.instruments.port import Port
-from qibolab.pulses import ControlSequence, Pulse, PulseType
+from qibolab.pulses import Pulse, PulseSequence, PulseType
 from qibolab.qubits import Qubit, QubitId
 from qibolab.result import IntegratedResults, SampleResults
 from qibolab.sweeper import Parameter, Sweeper, SweeperType
@@ -71,14 +71,14 @@ class RFSOC(Controller):
         self,
         qubits: Dict[QubitId, Qubit],
         couplers,
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         options: ExecutionParameters,
     ):
         """Plays the given pulse sequence without acquisition.
 
         Arguments:
             qubits (dict): Dictionary of qubit IDs mapped to qubit objects.
-            sequence (ControlSequence): Pulse sequence to be played on this instrument.
+            sequence (PulseSequence): Pulse sequence to be played on this instrument.
             options (ExecutionParameters): Execution parameters for readout and repetition.
         """
 
@@ -223,7 +223,7 @@ class RFSOC_RO(RFSOC):
         self,
         qubits: Dict[QubitId, Qubit],
         couplers,
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         options: ExecutionParameters,
     ):
         """Plays the pulse sequence on the IcarusQ RFSoC and awaits acquisition
@@ -231,7 +231,7 @@ class RFSOC_RO(RFSOC):
 
         Arguments:
             qubits (dict): Dictionary of qubit IDs mapped to qubit objects.
-            sequence (ControlSequence): Pulse sequence to be played on this instrument.
+            sequence (PulseSequence): Pulse sequence to be played on this instrument.
             options (ExecutionParameters): Object representing acquisition type and number of shots.
         """
         super().play(qubits, couplers, sequence, options)
@@ -320,7 +320,7 @@ class RFSOC_RO(RFSOC):
         self,
         qubits: Dict[QubitId, Qubit],
         couplers,
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         options: ExecutionParameters,
         *sweeper: Sweeper,
     ):
@@ -355,7 +355,7 @@ class RFSOC_RO(RFSOC):
         self,
         qubits: Dict[QubitId, Qubit],
         couplers,
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         options: ExecutionParameters,
         *sweeper: Sweeper,
     ):

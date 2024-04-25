@@ -4,7 +4,7 @@ import pytest
 from qibolab.instruments.abstract import Instrument
 from qibolab.instruments.qblox.cluster_qrm_rf import QrmRf
 from qibolab.instruments.qblox.port import QbloxInputPort, QbloxOutputPort
-from qibolab.pulses import ControlSequence
+from qibolab.pulses import PulseSequence
 from qibolab.sweeper import Parameter, Sweeper, SweeperType
 
 from .qblox_fixtures import connected_controller, controller
@@ -143,7 +143,7 @@ def test_connect(connected_qrm_rf: QrmRf):
 
 @pytest.mark.qpu
 def test_pulse_sequence(connected_platform, connected_qrm_rf: QrmRf):
-    ps = ControlSequence()
+    ps = PulseSequence()
     for channel in connected_qrm_rf.channel_map:
         ps.append(DrivePulse(0, 200, 1, 6.8e9, np.pi / 2, "Gaussian(5)", channel))
         ps.append(
@@ -171,7 +171,7 @@ def test_pulse_sequence(connected_platform, connected_qrm_rf: QrmRf):
 
 @pytest.mark.qpu
 def test_sweepers(connected_platform, connected_qrm_rf: QrmRf):
-    ps = ControlSequence()
+    ps = PulseSequence()
     qd_pulses = {}
     ro_pulses = {}
     for channel in connected_qrm_rf.channel_map:

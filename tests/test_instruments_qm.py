@@ -9,7 +9,7 @@ from qibolab.instruments.qm import OPXplus, QMController
 from qibolab.instruments.qm.acquisition import Acquisition, declare_acquisitions
 from qibolab.instruments.qm.controller import controllers_config
 from qibolab.instruments.qm.sequence import BakedPulse, QMPulse, Sequence
-from qibolab.pulses import ControlSequence, Pulse, PulseType, Rectangular
+from qibolab.pulses import Pulse, PulseSequence, PulseType, Rectangular
 from qibolab.qubits import Qubit
 from qibolab.sweeper import Parameter, Sweeper
 
@@ -426,7 +426,7 @@ def test_qm_qubit_spectroscopy(mocker, qmplatform):
     controller = platform.instruments["qm"]
     # disable program dump otherwise it will fail if we don't connect
     controller.script_file_name = None
-    sequence = ControlSequence()
+    sequence = PulseSequence()
     qd_pulses = {}
     ro_pulses = {}
     for qubit in [1, 2, 3]:
@@ -449,7 +449,7 @@ def test_qm_duration_sweeper(mocker, qmplatform):
     # disable program dump otherwise it will fail if we don't connect
     controller.script_file_name = None
     qubit = 1
-    sequence = ControlSequence()
+    sequence = PulseSequence()
     qd_pulse = platform.create_RX_pulse(qubit, start=0)
     sequence.append(qd_pulse)
     sequence.append(platform.create_MZ_pulse(qubit, start=qd_pulse.finish))

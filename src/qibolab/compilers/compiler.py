@@ -15,7 +15,7 @@ from qibolab.compilers.default import (
     u3_rule,
     z_rule,
 )
-from qibolab.pulses import ControlSequence, Delay
+from qibolab.pulses import Delay, PulseSequence
 
 
 @dataclass
@@ -136,7 +136,7 @@ class Compiler:
             sequence (qibolab.pulses.PulseSequence): Pulse sequence that implements the circuit.
             measurement_map (dict): Map from each measurement gate to the sequence of  readout pulse implementing it.
         """
-        sequence = ControlSequence()
+        sequence = PulseSequence()
         # FIXME: This will not work with qubits that have string names
         # TODO: Implement a mapping between circuit qubit ids and platform ``Qubit``s
 

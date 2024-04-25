@@ -6,7 +6,7 @@ import pytest
 from qibolab.instruments.abstract import Instrument
 from qibolab.instruments.qblox.cluster_qcm_bb import QcmBb
 from qibolab.instruments.qblox.port import QbloxOutputPort
-from qibolab.pulses import ControlSequence
+from qibolab.pulses import PulseSequence
 from qibolab.sweeper import Parameter, Sweeper, SweeperType
 
 from .qblox_fixtures import connected_controller, controller
@@ -135,7 +135,7 @@ def test_connect(connected_qcm_bb: QcmBb):
 
 @pytest.mark.qpu
 def test_pulse_sequence(connected_platform, connected_qcm_bb: QcmBb):
-    ps = ControlSequence()
+    ps = PulseSequence()
     ps.append(FluxPulse(40, 70, 0.5, "Rectangular", O1_OUTPUT_CHANNEL))
     ps.append(FluxPulse(0, 50, 0.3, "Rectangular", O2_OUTPUT_CHANNEL))
     ps.append(FluxPulse(20, 100, 0.02, "Rectangular", O3_OUTPUT_CHANNEL))
@@ -154,7 +154,7 @@ def test_pulse_sequence(connected_platform, connected_qcm_bb: QcmBb):
 
 @pytest.mark.qpu
 def test_sweepers(connected_platform, connected_qcm_bb: QcmBb):
-    ps = ControlSequence()
+    ps = PulseSequence()
     ps.append(FluxPulse(40, 70, 0.5, "Rectangular", O1_OUTPUT_CHANNEL))
     ps.append(FluxPulse(0, 50, 0.3, "Rectangular", O2_OUTPUT_CHANNEL))
     ps.append(FluxPulse(20, 100, 0.02, "Rectangular", O3_OUTPUT_CHANNEL))

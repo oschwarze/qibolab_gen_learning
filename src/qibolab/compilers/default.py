@@ -5,25 +5,25 @@ Uses I, Z, RZ, U3, CZ, and M as the set of native gates.
 
 import math
 
-from qibolab.pulses import ControlSequence, VirtualZ
+from qibolab.pulses import PulseSequence, VirtualZ
 from qibolab.serialize_ import replace
 
 
 def identity_rule(gate, qubit):
     """Identity gate skipped."""
-    return ControlSequence()
+    return PulseSequence()
 
 
 def z_rule(gate, qubit):
     """Z gate applied virtually."""
-    return ControlSequence(
+    return PulseSequence(
         [VirtualZ(phase=math.pi, channel=qubit.drive.name, qubit=qubit.name)]
     )
 
 
 def rz_rule(gate, qubit):
     """RZ gate applied virtually."""
-    return ControlSequence(
+    return PulseSequence(
         [VirtualZ(phase=gate.parameters[0], channel=qubit.drive.name, qubit=qubit.name)]
     )
 
@@ -32,7 +32,7 @@ def gpi2_rule(gate, qubit):
     """Rule for GPI2."""
     theta = gate.parameters[0]
     pulse = replace(qubit.native_gates.RX90, relative_phase=theta)
-    sequence = ControlSequence([pulse])
+    sequence = PulseSequence([pulse])
     return sequence
 
 
@@ -44,7 +44,7 @@ def gpi_rule(gate, qubit):
     # https://github.com/qiboteam/qibolab/pull/804#pullrequestreview-1890205509
     # for more detail.
     pulse = replace(qubit.native_gates.RX, relative_phase=theta)
-    sequence = ControlSequence([pulse])
+    sequence = PulseSequence([pulse])
     return sequence
 
 
@@ -54,7 +54,7 @@ def u3_rule(gate, qubit):
     theta, phi, lam = gate.parameters
     # apply RZ(lam)
     virtual_z_phases = {qubit.name: lam}
-    sequence = ControlSequence()
+    sequence = PulseSequence()
     sequence.append(VirtualZ(phase=lam, channel=qubit.drive.name, qubit=qubit.name))
     # Fetch pi/2 pulse from calibration and apply RX(pi/2)
     sequence.append(qubit.native_gates.RX90)
@@ -83,4 +83,4 @@ def cnot_rule(gate, pair):
 
 def measurement_rule(gate, qubits):
     """Measurement gate applied using the platform readout pulse."""
-    return ControlSequence([qubit.native_gates.MZ for qubit in qubits])
+    return PulseSequence([qubit.native_gates.MZ for qubit in qubits])

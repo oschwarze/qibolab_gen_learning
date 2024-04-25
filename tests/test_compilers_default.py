@@ -6,7 +6,7 @@ from qibo.models import Circuit
 
 from qibolab import create_platform
 from qibolab.compilers import Compiler
-from qibolab.pulses import ControlSequence, Delay
+from qibolab.pulses import Delay, PulseSequence
 
 
 def generate_circuit_with_gate(nqubits, gate, *params, **kwargs):
@@ -96,7 +96,7 @@ def test_gpi_to_sequence(platform):
     assert len(sequence.qd_pulses) == 1
 
     rx_pulse = platform.create_RX_pulse(0, relative_phase=0.2)
-    s = ControlSequence([rx_pulse])
+    s = PulseSequence([rx_pulse])
 
     np.testing.assert_allclose(sequence.duration, rx_pulse.duration)
 
@@ -109,7 +109,7 @@ def test_gpi2_to_sequence(platform):
     assert len(sequence.qd_pulses) == 1
 
     rx90_pulse = platform.create_RX90_pulse(0, relative_phase=0.2)
-    s = ControlSequence([rx90_pulse])
+    s = PulseSequence([rx90_pulse])
 
     np.testing.assert_allclose(sequence.duration, rx90_pulse.duration)
     assert sequence == s
@@ -125,7 +125,7 @@ def test_u3_to_sequence(platform):
 
     rx90_pulse1 = platform.create_RX90_pulse(0, relative_phase=0.3)
     rx90_pulse2 = platform.create_RX90_pulse(0, relative_phase=0.4 - np.pi)
-    s = ControlSequence([rx90_pulse1, rx90_pulse2])
+    s = PulseSequence([rx90_pulse1, rx90_pulse2])
 
     np.testing.assert_allclose(
         sequence.duration, rx90_pulse1.duration + rx90_pulse2.duration
@@ -150,7 +150,7 @@ def test_two_u3_to_sequence(platform):
     rx90_pulse2 = platform.create_RX90_pulse(0, relative_phase=0.4 - np.pi)
     rx90_pulse3 = platform.create_RX90_pulse(0, relative_phase=1.1)
     rx90_pulse4 = platform.create_RX90_pulse(0, relative_phase=1.5 - np.pi)
-    s = ControlSequence([rx90_pulse1, rx90_pulse2, rx90_pulse3, rx90_pulse4])
+    s = PulseSequence([rx90_pulse1, rx90_pulse2, rx90_pulse3, rx90_pulse4])
     # assert sequence == s
 
 
@@ -189,7 +189,7 @@ def test_add_measurement_to_sequence(platform):
     rx90_pulse2 = platform.create_RX90_pulse(0, relative_phase=0.4 - np.pi)
     mz_pulse = platform.create_MZ_pulse(0)
     delay = 2 * rx90_pulse1.duration
-    s = ControlSequence(
+    s = PulseSequence(
         [
             rx90_pulse1,
             rx90_pulse2,
@@ -208,7 +208,7 @@ def test_align_delay_measurement(platform, delay):
     sequence = compile_circuit(circuit, platform)
 
     mz_pulse = platform.create_MZ_pulse(0)
-    target_sequence = ControlSequence()
+    target_sequence = PulseSequence()
     if delay > 0:
         target_sequence.append(Delay(duration=delay, channel=mz_pulse.channel))
     target_sequence.append(mz_pulse)

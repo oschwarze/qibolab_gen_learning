@@ -8,7 +8,7 @@ import qibosoq.components.base as rfsoc
 import qibosoq.components.pulses as rfsoc_pulses
 
 from qibolab.platform import Qubit
-from qibolab.pulses import ControlSequence, Envelope, Pulse
+from qibolab.pulses import Envelope, Pulse, PulseSequence
 from qibolab.sweeper import BIAS, DURATION, Parameter, Sweeper
 
 HZ_TO_MHZ = 1e-6
@@ -54,7 +54,7 @@ def pulse_lo_frequency(pulse: Pulse, qubits: dict[int, Qubit]) -> int:
 
 
 def convert_units_sweeper(
-    sweeper: rfsoc.Sweeper, sequence: ControlSequence, qubits: dict[int, Qubit]
+    sweeper: rfsoc.Sweeper, sequence: PulseSequence, qubits: dict[int, Qubit]
 ):
     """Convert units for `qibosoq.abstract.Sweeper` considering also LOs."""
     for idx, jdx in enumerate(sweeper.indexes):
@@ -89,7 +89,7 @@ def _(qubit: Qubit) -> rfsoc.Qubit:
 
 @convert.register
 def _(
-    sequence: ControlSequence, qubits: dict[int, Qubit], sampling_rate: float
+    sequence: PulseSequence, qubits: dict[int, Qubit], sampling_rate: float
 ) -> list[rfsoc_pulses.Pulse]:
     """Convert PulseSequence to list of rfosc pulses with relative time."""
     last_pulse_start = 0
@@ -135,7 +135,7 @@ def _(par: Parameter) -> rfsoc.Parameter:
 
 @convert.register
 def _(
-    sweeper: Sweeper, sequence: ControlSequence, qubits: dict[int, Qubit]
+    sweeper: Sweeper, sequence: PulseSequence, qubits: dict[int, Qubit]
 ) -> rfsoc.Sweeper:
     """Convert `qibolab.sweeper.Sweeper` to `qibosoq.abstract.Sweeper`.
 

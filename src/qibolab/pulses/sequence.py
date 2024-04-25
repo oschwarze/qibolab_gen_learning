@@ -5,7 +5,7 @@ from collections import defaultdict
 from pulse import PulseType
 
 
-class ControlSequence(defaultdict):
+class PulseSequence(defaultdict):
     """Synchronized sequence of control instructions across multiple channels.
 
     The keys are names of channels, and the values are lists of pulses
@@ -34,7 +34,7 @@ class ControlSequence(defaultdict):
         """Duration of the given channel."""
         return sum(item.duration for item in self[channel])
 
-    def __add__(self, other: "ControlSequence") -> "ControlSequence":
+    def __add__(self, other: "PulseSequence") -> "PulseSequence":
         """Create a PulseSequence which is self + necessary delays to
         synchronize channels + other."""
         # TODO: implement

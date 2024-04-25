@@ -5,7 +5,7 @@ import pytest
 
 from qibolab import AveragingMode, ExecutionParameters
 from qibolab.instruments.qblox.controller import MAX_NUM_BINS, QbloxController
-from qibolab.pulses import ControlSequence, Gaussian, Pulse, PulseType, Rectangular
+from qibolab.pulses import Gaussian, Pulse, PulseSequence, PulseType, Rectangular
 from qibolab.result import IntegratedResults
 from qibolab.sweeper import Parameter, Sweeper
 
@@ -35,7 +35,7 @@ def test_sweep_too_many_bins(platform, controller):
         PulseType.READOUT,
         qubit=0,
     )
-    sequence = ControlSequence([pulse, ro_pulse])
+    sequence = PulseSequence([pulse, ro_pulse])
 
     # These values shall result into execution in two rounds
     shots = 128
@@ -66,7 +66,7 @@ def test_sweep_too_many_sweep_points(platform, controller):
     )
     params = ExecutionParameters(nshots=12, relaxation_time=10)
     with pytest.raises(ValueError, match="total number of sweep points"):
-        controller.sweep({0: qubit}, {}, ControlSequence([pulse]), params, sweep)
+        controller.sweep({0: qubit}, {}, PulseSequence([pulse]), params, sweep)
 
 
 @pytest.mark.qpu

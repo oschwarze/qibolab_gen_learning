@@ -11,7 +11,7 @@ from .channel_configs import ChannelConfig
 from .couplers import Coupler
 from .execution_parameters import ExecutionParameters
 from .instruments.abstract import Controller, Instrument, InstrumentId
-from .pulses import ControlSequence, Delay, Drag, PulseType
+from .pulses import Delay, Drag, PulseSequence, PulseType
 from .qubits import Qubit, QubitId, QubitPair, QubitPairId
 from .serialize_ import replace
 from .sweeper import Sweeper
@@ -26,8 +26,8 @@ NS_TO_SEC = 1e-9
 
 
 def unroll_sequences(
-    sequences: List[ControlSequence], relaxation_time: int
-) -> Tuple[ControlSequence, dict[str, list[str]]]:
+    sequences: List[PulseSequence], relaxation_time: int
+) -> Tuple[PulseSequence, dict[str, list[str]]]:
     """Unrolls a list of pulse sequences to a single pulse sequence with
     multiple measurements.
 
@@ -42,7 +42,7 @@ def unroll_sequences(
         readout_map (dict): Map from original readout pulse serials to the unrolled readout pulse
             serials. Required to construct the results dictionary that is returned after execution.
     """
-    total_sequence = ControlSequence()
+    total_sequence = PulseSequence()
     readout_map = defaultdict(list)
     channels = {pulse.channel for sequence in sequences for pulse in sequence}
     for sequence in sequences:
@@ -159,7 +159,7 @@ class Platform:
             for fld in fields(gates):
                 sequence = getattr(gates, fld.name)
                 if len(sequence) > 0:
-                    new_sequence = ControlSequence()
+                    new_sequence = PulseSequence()
                     for pulse in sequence:
                         if pulse.type is PulseType.VIRTUALZ:
                             channel = self.qubits[pulse.qubit].drive.name
@@ -230,14 +230,14 @@ class Platform:
 
     def execute_pulse_sequence(
         self,
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         channel_cfg: dict[str, ChannelConfig],
         options: ExecutionParameters,
         **kwargs,
     ):
         """
         Args:
-            sequence (:class:`qibolab.pulses.ControlSequence`): Pulse sequences to execute.
+            sequence (:class:`qibolab.pulses.PulseSequence`): Pulse sequences to execute.
             channel_cfg: configs to override for given channels.
             options (:class:`qibolab.platforms.platform.ExecutionParameters`): Object holding the execution options.
             **kwargs: May need them for something
@@ -274,14 +274,14 @@ class Platform:
 
     def execute_pulse_sequences(
         self,
-        sequences: List[ControlSequence],
+        sequences: List[PulseSequence],
         channel_cfg: dict[str, ChannelConfig],
         options: ExecutionParameters,
         **kwargs,
     ):
         """
         Args:
-            sequence (List[:class:`qibolab.pulses.ControlSequence`]): Pulse sequences to execute.
+            sequence (List[:class:`qibolab.pulses.PulseSequence`]): Pulse sequences to execute.
             options (:class:`qibolab.platforms.platform.ExecutionParameters`): Object holding the execution options.
             **kwargs: May need them for something
         Returns:
@@ -322,7 +322,7 @@ class Platform:
 
     def sweep(
         self,
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         channel_cfg: dict[str, ChannelConfig],
         options: ExecutionParameters,
         *sweepers: Sweeper,

@@ -18,7 +18,7 @@ from qibolab.instruments.qblox.q1asm import (
 )
 from qibolab.instruments.qblox.sequencer import Sequencer, WaveformsBuffer
 from qibolab.instruments.qblox.sweeper import QbloxSweeper, QbloxSweeperType
-from qibolab.pulses import ControlSequence, Pulse, PulseType
+from qibolab.pulses import Pulse, PulseSequence, PulseType
 from qibolab.sweeper import Parameter, Sweeper, SweeperType
 
 
@@ -268,7 +268,7 @@ class QcmBb(ClusterModule):
     def process_pulse_sequence(
         self,
         qubits: dict,
-        instrument_pulses: ControlSequence,
+        instrument_pulses: PulseSequence,
         navgs: int,
         nshots: int,
         repetition_duration: int,
@@ -300,7 +300,7 @@ class QcmBb(ClusterModule):
         - intrument parameters cache
 
         Args:
-            instrument_pulses (ControlSequence): A collection of Pulse objects to be played by the instrument.
+            instrument_pulses (PulseSequence): A collection of Pulse objects to be played by the instrument.
             navgs (int): The number of times the sequence of pulses should be executed averaging the results.
             nshots (int): The number of times the sequence of pulses should be executed without averaging.
             repetition_duration (int): The total duration of the pulse sequence execution plus the reset/relaxation time.
@@ -321,7 +321,7 @@ class QcmBb(ClusterModule):
                 for chan in self.channel_map.values()
                 if chan.port.name == port
             ]
-            port_pulses: ControlSequence = instrument_pulses.get_channel_pulses(
+            port_pulses: PulseSequence = instrument_pulses.get_channel_pulses(
                 *port_channel
             )
 
@@ -335,7 +335,7 @@ class QcmBb(ClusterModule):
 
             if not port_pulses.is_empty:
                 # split the collection of port pulses in non overlapping pulses
-                non_overlapping_pulses: ControlSequence
+                non_overlapping_pulses: PulseSequence
                 for non_overlapping_pulses in port_pulses.separate_overlapping_pulses():
                     # TODO: for non_overlapping_same_frequency_pulses in non_overlapping_pulses.separate_different_frequency_pulses():
 

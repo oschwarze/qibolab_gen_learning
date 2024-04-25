@@ -12,7 +12,7 @@ from qibo.config import log
 from qibolab import AcquisitionType, AveragingMode, ExecutionParameters
 from qibolab.couplers import Coupler
 from qibolab.instruments.abstract import Controller
-from qibolab.pulses import ControlSequence, PulseType
+from qibolab.pulses import PulseSequence, PulseType
 from qibolab.qubits import Qubit
 from qibolab.sweeper import Parameter, Sweeper
 from qibolab.unrolling import Bounds
@@ -359,7 +359,7 @@ class Zurich(Controller):
         self,
         qubits: dict[str, Qubit],
         couplers: dict[str, Coupler],
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         options: ExecutionParameters,
     ):
         """Create the experiment object for the devices, following the steps
@@ -370,7 +370,7 @@ class Zurich(Controller):
         Args:
             qubits (dict[str, Qubit]): qubits for the platform.
             couplers (dict[str, Coupler]): couplers for the platform.
-            sequence (ControlSequence): sequence of pulses to be played in the experiment.
+            sequence (PulseSequence): sequence of pulses to be played in the experiment.
         """
         self.sequence = self.sequence_zh(sequence, qubits)
         self.sub_sequences, self.unsplit_channels = self.create_sub_sequences(
@@ -385,7 +385,7 @@ class Zurich(Controller):
         return self.sweep(qubits, couplers, sequence, channel_cfg, options)
 
     def sequence_zh(
-        self, sequence: ControlSequence, qubits: dict[str, Qubit]
+        self, sequence: PulseSequence, qubits: dict[str, Qubit]
     ) -> dict[str, list[ZhPulse]]:
         """Convert Qibo sequence to a sequence where all pulses are replaced
         with ZhPulse instances.
@@ -692,7 +692,7 @@ class Zurich(Controller):
         self,
         qubits,
         couplers,
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         channel_cfg,
         options,
         *sweepers,

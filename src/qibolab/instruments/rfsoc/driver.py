@@ -14,7 +14,7 @@ from qibolab import AcquisitionType, AveragingMode, ExecutionParameters
 from qibolab.instruments.abstract import Controller
 from qibolab.instruments.port import Port
 from qibolab.platform import Coupler, Qubit
-from qibolab.pulses import ControlSequence, PulseType
+from qibolab.pulses import PulseSequence, PulseType
 from qibolab.result import IntegratedResults, SampleResults
 from qibolab.sweeper import BIAS, Sweeper
 
@@ -90,14 +90,14 @@ class RFSoC(Controller):
 
     def _execute_pulse_sequence(
         self,
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         qubits: dict[int, Qubit],
         opcode: rfsoc.OperationCode,
     ) -> tuple[list, list]:
         """Prepare the commands dictionary to send to the qibosoq server.
 
         Args:
-            sequence (`qibolab.pulses.ControlSequence`): arbitrary PulseSequence object to execute
+            sequence (`qibolab.pulses.PulseSequence`): arbitrary PulseSequence object to execute
             qubits: list of qubits (`qibolab.platforms.abstract.Qubit`) of the platform in the form of a dictionary
             opcode: can be `rfsoc.OperationCode.EXECUTE_PULSE_SEQUENCE` or `rfsoc.OperationCode.EXECUTE_PULSE_SEQUENCE_RAW`
         Returns:
@@ -113,14 +113,14 @@ class RFSoC(Controller):
 
     def _execute_sweeps(
         self,
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         qubits: dict[int, Qubit],
         sweepers: list[rfsoc.Sweeper],
     ) -> tuple[list, list]:
         """Prepare the commands dictionary to send to the qibosoq server.
 
         Args:
-            sequence (`qibolab.pulses.ControlSequence`): arbitrary PulseSequence object to execute
+            sequence (`qibolab.pulses.PulseSequence`): arbitrary PulseSequence object to execute
             qubits: list of qubits (`qibolab.platforms.abstract.Qubit`) of the platform in the form of a dictionary
             sweepers: list of `qibosoq.abstract.Sweeper` objects
         Returns:
@@ -141,7 +141,7 @@ class RFSoC(Controller):
         self,
         qubits: dict[int, Qubit],
         couplers: dict[int, Coupler],
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         execution_parameters: ExecutionParameters,
     ) -> dict[str, Union[IntegratedResults, SampleResults]]:
         """Execute the sequence of instructions and retrieves readout results.
@@ -157,7 +157,7 @@ class RFSoC(Controller):
                                                         fast_reset,
                                                         acquisition_type,
                                                         averaging_mode)
-            sequence (`qibolab.pulses.ControlSequence`): Pulse sequence to play.
+            sequence (`qibolab.pulses.PulseSequence`): Pulse sequence to play.
         Returns:
             A dictionary mapping the readout pulses serial and respective qubits to
             qibolab results objects
@@ -209,7 +209,7 @@ class RFSoC(Controller):
 
     @staticmethod
     def validate_input_command(
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         execution_parameters: ExecutionParameters,
         sweep: bool,
     ):
@@ -260,8 +260,8 @@ class RFSoC(Controller):
         self,
         qubits: dict[int, Qubit],
         couplers: dict[int, Coupler],
-        sequence: ControlSequence,
-        or_sequence: ControlSequence,
+        sequence: PulseSequence,
+        or_sequence: PulseSequence,
         execution_parameters: ExecutionParameters,
     ) -> dict[str, Union[IntegratedResults, SampleResults]]:
         """Last recursion layer, if no sweeps are present.
@@ -287,8 +287,8 @@ class RFSoC(Controller):
         self,
         qubits: dict[int, Qubit],
         couplers: dict[int, Coupler],
-        sequence: ControlSequence,
-        or_sequence: ControlSequence,
+        sequence: PulseSequence,
+        or_sequence: PulseSequence,
         *sweepers: rfsoc.Sweeper,
         execution_parameters: ExecutionParameters,
     ) -> dict[str, Union[IntegratedResults, SampleResults]]:
@@ -297,7 +297,7 @@ class RFSoC(Controller):
         Args:
             qubits (list): List of `qibolab.platforms.utils.Qubit` objects
                     passed from the platform.
-            sequence (`qibolab.pulses.ControlSequence`): Pulse sequence to play.
+            sequence (`qibolab.pulses.PulseSequence`): Pulse sequence to play.
                     This object is a deep copy of the original
                     sequence and gets modified.
             or_sequence (`qibolab.pulses.PulseSequence`): Reference to original
@@ -400,7 +400,7 @@ class RFSoC(Controller):
         return dict_a
 
     def get_if_python_sweep(
-        self, sequence: ControlSequence, *sweepers: rfsoc.Sweeper
+        self, sequence: PulseSequence, *sweepers: rfsoc.Sweeper
     ) -> bool:
         """Check if a sweeper must be run with python loop or on hardware.
 
@@ -452,7 +452,7 @@ class RFSoC(Controller):
 
     def convert_sweep_results(
         self,
-        original_ro: ControlSequence,
+        original_ro: PulseSequence,
         qubits: dict[int, Qubit],
         toti: list[list[list[float]]],
         totq: list[list[list[float]]],
@@ -461,7 +461,7 @@ class RFSoC(Controller):
         """Convert sweep res to qibolab dict res.
 
         Args:
-            original_ro (`qibolab.pulses.ControlSequence`): Original PulseSequence
+            original_ro (`qibolab.pulses.PulseSequence`): Original PulseSequence
             qubits (list): List of `qibolab.platforms.utils.Qubit` objects
                  passed from the platform.
             toti (list): i values
@@ -511,7 +511,7 @@ class RFSoC(Controller):
         self,
         qubits: dict[int, Qubit],
         couplers: dict[int, Coupler],
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         execution_parameters: ExecutionParameters,
         *sweepers: Sweeper,
     ) -> dict[str, Union[IntegratedResults, SampleResults]]:

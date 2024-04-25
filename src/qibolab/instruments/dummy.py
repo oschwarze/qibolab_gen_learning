@@ -6,7 +6,7 @@ from qibo.config import log
 
 from qibolab import AcquisitionType, AveragingMode, ExecutionParameters
 from qibolab.platform import Coupler, Qubit
-from qibolab.pulses import ControlSequence
+from qibolab.pulses import PulseSequence
 from qibolab.qubits import QubitId
 from qibolab.sweeper import Sweeper
 from qibolab.unrolling import Bounds
@@ -114,7 +114,7 @@ class DummyInstrument(Controller):
         self,
         qubits: Dict[QubitId, Qubit],
         couplers: Dict[QubitId, Coupler],
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         options: ExecutionParameters,
     ):
         exp_points = (
@@ -135,7 +135,7 @@ class DummyInstrument(Controller):
         self,
         qubits: Dict[QubitId, Qubit],
         couplers: Dict[QubitId, Coupler],
-        sequence: ControlSequence,
+        sequence: PulseSequence,
         options: ExecutionParameters,
         *sweepers: List[Sweeper],
     ):

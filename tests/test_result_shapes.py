@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from qibolab import AcquisitionType, AveragingMode, ExecutionParameters
-from qibolab.pulses import ControlSequence
+from qibolab.pulses import PulseSequence
 from qibolab.result import (
     AveragedIntegratedResults,
     AveragedSampleResults,
@@ -21,7 +21,7 @@ def execute(platform, acquisition_type, averaging_mode, sweep=False):
 
     qd_pulse = platform.create_RX_pulse(qubit, start=0)
     ro_pulse = platform.create_MZ_pulse(qubit, start=qd_pulse.finish)
-    sequence = ControlSequence()
+    sequence = PulseSequence()
     sequence.append(qd_pulse)
     sequence.append(ro_pulse)
 

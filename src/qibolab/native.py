@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field, fields
 from typing import Optional
 
-from .pulses import ControlSequence, Pulse
+from .pulses import Pulse, PulseSequence
 from .serialize_ import replace
 
 
@@ -30,14 +30,14 @@ class TwoQubitNatives:
     """Container with the native two-qubit gates acting on a specific pair of
     qubits."""
 
-    CZ: ControlSequence = field(
-        default_factory=lambda: ControlSequence(), metadata={"symmetric": True}
+    CZ: PulseSequence = field(
+        default_factory=lambda: PulseSequence(), metadata={"symmetric": True}
     )
-    CNOT: ControlSequence = field(
-        default_factory=lambda: ControlSequence(), metadata={"symmetric": False}
+    CNOT: PulseSequence = field(
+        default_factory=lambda: PulseSequence(), metadata={"symmetric": False}
     )
-    iSWAP: ControlSequence = field(
-        default_factory=lambda: ControlSequence(), metadata={"symmetric": True}
+    iSWAP: PulseSequence = field(
+        default_factory=lambda: PulseSequence(), metadata={"symmetric": True}
     )
 
     @property

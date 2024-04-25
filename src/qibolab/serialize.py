@@ -21,7 +21,7 @@ from qibolab.platform import (
     QubitPairMap,
     Settings,
 )
-from qibolab.pulses import ControlSequence, Delay, Pulse, PulseType, VirtualZ
+from qibolab.pulses import Delay, Pulse, PulseSequence, PulseType, VirtualZ
 from qibolab.qubits import Qubit, QubitPair
 
 RUNCARD = "parameters.json"
@@ -117,7 +117,7 @@ def _load_two_qubit_natives(qubits, couplers, gates) -> TwoQubitNatives:
         if isinstance(seq_kwargs, dict):
             seq_kwargs = [seq_kwargs]
 
-        sequence = ControlSequence()
+        sequence = PulseSequence()
         for kwargs in seq_kwargs:
             if "coupler" in kwargs:
                 qubit = couplers[kwargs["coupler"]]

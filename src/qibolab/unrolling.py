@@ -6,10 +6,10 @@ May be reused by different instruments.
 from dataclasses import asdict, dataclass, field, fields
 from functools import total_ordering
 
-from .pulses import ControlSequence
+from .pulses import PulseSequence
 
 
-def _waveform(sequence: ControlSequence):
+def _waveform(sequence: PulseSequence):
     # TODO: deduplicate pulses (Not yet as drivers may not support it yet)
     # TODO: count Rectangular and delays separately (Zurich Instruments supports this)
     # TODO: Any constant part of a pulse should be counted only once (Zurich Instruments supports this)
@@ -18,12 +18,12 @@ def _waveform(sequence: ControlSequence):
     return sequence.duration - sequence.ro_pulses.duration
 
 
-def _readout(sequence: ControlSequence):
+def _readout(sequence: PulseSequence):
     # TODO: Do we count 1 readout per pulse or 1 readout per multiplexed readout ?
     return len(sequence.ro_pulses)
 
 
-def _instructions(sequence: ControlSequence):
+def _instructions(sequence: PulseSequence):
     return len(sequence)
 
 
@@ -40,7 +40,7 @@ class Bounds:
     """Instructions estimated size."""
 
     @classmethod
-    def update(cls, sequence: ControlSequence):
+    def update(cls, sequence: PulseSequence):
         up = {}
         for f in fields(cls):
             up[f.name] = f.metadata["count"](sequence)
@@ -60,7 +60,7 @@ class Bounds:
         return any(getattr(self, f.name) > getattr(other, f.name) for f in fields(self))
 
 
-def batch(sequences: list[ControlSequence], bounds: Bounds):
+def batch(sequences: list[PulseSequence], bounds: Bounds):
     """Split a list of sequences to batches.
 
     Takes into account the various limitations throught the mechanics defined in
