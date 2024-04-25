@@ -3,11 +3,7 @@ from typing import Optional, Union
 
 from .execution_parameters import AcquisitionType
 
-"""
-Channel is an abstract concept that defines means of communication between users and a quantum computer. A quantum
-computer can be perceived as just a set of channels where signals can be sent to or received from. Users can view and
-calibrate certain properties of channels. This module defines common configuration options for channels.
-"""
+"""Common configuration for various channels."""
 
 
 @dataclass(frozen=True)

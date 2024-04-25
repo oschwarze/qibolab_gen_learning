@@ -1,23 +1,23 @@
 from dataclasses import dataclass, field
-from typing import Dict
 
 from qibo.config import raise_error
 
+from .channel_configs import ChannelConfig
 
-def check_max_offset(offset, max_offset):
-    """Checks if a given offset value exceeds the maximum supported offset.
 
-    This is to avoid sending high currents that could damage lab
-    equipment such as amplifiers.
+@dataclass(frozen=True)
+class Channel:
+    """Channel is an abstract concept that defines means of communication
+    between users and a quantum computer.
+
+    A quantum computer can be perceived as just a set of channels where
+    signals can be sent to or received from. Channels are identified
+    with a unique name. The type of a channel is inferred from the type
+    of config it accepts.
     """
-    if max_offset is not None and abs(offset) > max_offset:
-        raise_error(
-            ValueError, f"{offset} exceeds the maximum allowed offset {max_offset}."
-        )
 
-
-@dataclass
-class Channel: ...
+    name: str
+    config: ChannelConfig
 
 
 @dataclass
@@ -29,7 +29,7 @@ class ChannelMap:
     specifying the names.
     """
 
-    _channels: Dict[str, Channel] = field(default_factory=dict)
+    _channels: dict[str, Channel] = field(default_factory=dict)
 
     def add(self, *items):
         """Add multiple items to the channel map.
@@ -39,10 +39,7 @@ class ChannelMap:
         is created and added to the channel map.
         """
         for item in items:
-            if isinstance(item, Channel):
-                self[item.name] = item
-            else:
-                self[item] = Channel(item)
+            self[item.name] = item
         return self
 
     def __getitem__(self, name):
