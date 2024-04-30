@@ -84,30 +84,25 @@ def load_qubits(
     return qubits, couplers, pairs
 
 
-def _load_pulse(pulse_kwargs, qubit):
-    coupler = "coupler" in pulse_kwargs
-    q = pulse_kwargs.pop("coupler" if coupler else "qubit", qubit.name)
-
+def _load_pulse(pulse_kwargs):
     if "phase" in pulse_kwargs:
-        return VirtualZ(**pulse_kwargs, qubit=q)
+        return VirtualZ(**pulse_kwargs)
     if "amplitude" not in pulse_kwargs:
         return Delay(**pulse_kwargs)
     if "frequency" not in pulse_kwargs:
-        return Pulse.flux(**pulse_kwargs, qubit=q)
-    return Pulse(**pulse_kwargs, qubit=q)
+        return Pulse.flux(**pulse_kwargs)
+    return Pulse(**pulse_kwargs)
 
 
-def _load_single_qubit_natives(qubit, gates) -> SingleQubitNatives:
-    """Parse native gates of the qubit from the runcard.
+def _load_single_qubit_natives(gates) -> SingleQubitNatives:
+    """Parse native gates from the runcard.
 
     Args:
-        qubit (:class:`qibolab.qubits.Qubit`): Qubit object that the
-            native gates are acting on.
         gates (dict): Dictionary with native gate pulse parameters as loaded
             from the runcard.
     """
     return SingleQubitNatives(
-        **{name: _load_pulse(kwargs, qubit) for name, kwargs in gates.items()}
+        **{name: _load_pulse(kwargs) for name, kwargs in gates.items()}
     )
 
 
@@ -143,11 +138,11 @@ def register_gates(
     native_gates = runcard.get("native_gates", {})
     for q, gates in native_gates.get("single_qubit", {}).items():
         qubit = qubits[json.loads(q)]
-        qubit.native_gates = _load_single_qubit_natives(qubit, gates)
+        qubit.native_gates = _load_single_qubit_natives(gates)
 
     for c, gates in native_gates.get("coupler", {}).items():
         coupler = couplers[json.loads(c)]
-        coupler.native_gates = _load_single_qubit_natives(coupler, gates)
+        coupler.native_gates = _load_single_qubit_natives(gates)
 
     # register two-qubit native gates to ``QubitPair`` objects
     for pair, gatedict in native_gates.get("two_qubit", {}).items():
