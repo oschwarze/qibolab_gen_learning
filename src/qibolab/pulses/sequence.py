@@ -17,7 +17,7 @@ class PulseSequence(defaultdict):
 
     @property
     def ro_pulses(self):
-        """A new sequence containing only its readout pulses."""
+        """Return list of the readout pulses in this sequence."""
         pulses = []
         for seq in self.values():
             for pulse in seq:
