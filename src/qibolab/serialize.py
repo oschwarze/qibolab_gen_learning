@@ -10,11 +10,9 @@ from dataclasses import asdict, fields
 from pathlib import Path
 from typing import Tuple
 
-from qibolab.couplers import Coupler
 from qibolab.kernels import Kernels
 from qibolab.native import SingleQubitNatives, TwoQubitNatives
 from qibolab.platform import (
-    CouplerMap,
     InstrumentMap,
     Platform,
     QubitMap,
@@ -40,7 +38,7 @@ def load_settings(runcard: dict) -> Settings:
 
 def load_qubits(
     runcard: dict, kernels: Kernels = None
-) -> Tuple[QubitMap, CouplerMap, QubitPairMap]:
+) -> Tuple[QubitMap, QubitMap, QubitPairMap]:
     """Load qubits and pairs from the runcard.
 
     Uses the native gate and characterization sections of the runcard to
@@ -65,7 +63,7 @@ def load_qubits(
     pairs = {}
     if "coupler" in runcard["characterization"]:
         couplers = {
-            json.loads(c): Coupler(json.loads(c), **char)
+            json.loads(c): Qubit(json.loads(c), **char)
             for c, char in runcard["characterization"]["coupler"].items()
         }
 
@@ -125,7 +123,7 @@ def _load_two_qubit_natives(qubits, couplers, gates) -> TwoQubitNatives:
 
 
 def register_gates(
-    runcard: dict, qubits: QubitMap, pairs: QubitPairMap, couplers: CouplerMap = None
+    runcard: dict, qubits: QubitMap, pairs: QubitPairMap, couplers: QubitMap = None
 ) -> Tuple[QubitMap, QubitPairMap]:
     """Register single qubit native gates to ``Qubit`` objects from the
     runcard.
@@ -202,7 +200,7 @@ def _dump_two_qubit_natives(natives: TwoQubitNatives):
 
 
 def dump_native_gates(
-    qubits: QubitMap, pairs: QubitPairMap, couplers: CouplerMap = None
+    qubits: QubitMap, pairs: QubitPairMap, couplers: QubitMap = None
 ) -> dict:
     """Dump native gates section to dictionary following the runcard format,
     using qubit and pair objects."""
@@ -231,7 +229,7 @@ def dump_native_gates(
     return native_gates
 
 
-def dump_characterization(qubits: QubitMap, couplers: CouplerMap = None) -> dict:
+def dump_characterization(qubits: QubitMap, couplers: QubitMap = None) -> dict:
     """Dump qubit characterization section to dictionary following the runcard
     format, using qubit and pair objects."""
     characterization = {
