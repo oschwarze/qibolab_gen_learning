@@ -12,13 +12,7 @@ from typing import Tuple
 
 from qibolab.kernels import Kernels
 from qibolab.native import SingleQubitNatives, TwoQubitNatives
-from qibolab.platform import (
-    InstrumentMap,
-    Platform,
-    QubitMap,
-    QubitPairMap,
-    Settings,
-)
+from qibolab.platform import InstrumentMap, Platform, QubitMap, QubitPairMap, Settings
 from qibolab.pulses import Delay, Pulse, PulseSequence, PulseType, VirtualZ
 from qibolab.qubits import Qubit, QubitPair
 
