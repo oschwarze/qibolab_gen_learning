@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 
-from pulse import Delay, PulseType
+from .pulse import Delay, PulseType
 
 
 class PulseSequence(defaultdict):
