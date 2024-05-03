@@ -8,7 +8,7 @@ example for more details.
 import json
 from dataclasses import asdict, fields
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 from qibolab.kernels import Kernels
 from qibolab.native import SingleQubitNatives, TwoQubitNatives
@@ -31,7 +31,7 @@ def load_settings(runcard: dict) -> Settings:
 
 
 def load_qubits(
-    runcard: dict, kernels: Kernels = None
+    runcard: dict, kernels: Optional[Kernels] = None
 ) -> Tuple[QubitMap, QubitMap, QubitPairMap]:
     """Load qubits and pairs from the runcard.
 
@@ -117,8 +117,11 @@ def _load_two_qubit_natives(qubits, couplers, gates) -> TwoQubitNatives:
 
 
 def register_gates(
-    runcard: dict, qubits: QubitMap, pairs: QubitPairMap, couplers: QubitMap = None
-) -> Tuple[QubitMap, QubitPairMap]:
+    runcard: dict,
+    qubits: QubitMap,
+    pairs: QubitPairMap,
+    couplers: Optional[QubitMap] = None,
+) -> Tuple[QubitMap, QubitPairMap, QubitMap]:
     """Register single qubit native gates to ``Qubit`` objects from the
     runcard.
 
@@ -159,7 +162,7 @@ def load_instrument_settings(
 
 def _dump_pulse(pulse: Pulse):
     data = pulse.model_dump()
-    if pulse.type in (PulseType.FLUX, PulseType.COUPLERFLUX):
+    if pulse.type is PulseType.FLUX:
         del data["frequency"]
     data["type"] = data["type"].value
     if "channel" in data:
@@ -194,7 +197,7 @@ def _dump_two_qubit_natives(natives: TwoQubitNatives):
 
 
 def dump_native_gates(
-    qubits: QubitMap, pairs: QubitPairMap, couplers: QubitMap = None
+    qubits: QubitMap, pairs: QubitPairMap, couplers: Optional[QubitMap] = None
 ) -> dict:
     """Dump native gates section to dictionary following the runcard format,
     using qubit and pair objects."""
@@ -223,7 +226,9 @@ def dump_native_gates(
     return native_gates
 
 
-def dump_characterization(qubits: QubitMap, couplers: QubitMap = None) -> dict:
+def dump_characterization(
+    qubits: QubitMap, couplers: Optional[QubitMap] = None
+) -> dict:
     """Dump qubit characterization section to dictionary following the runcard
     format, using qubit and pair objects."""
     characterization = {
