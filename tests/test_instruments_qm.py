@@ -160,6 +160,7 @@ def test_qm_register_port(qmcontroller, offset):
         "con1": {
             "analog_inputs": {1: {}, 2: {}},
             "analog_outputs": {1: {"offset": offset, "filter": {}}},
+            "digital_outputs": {},
         }
     }
 
@@ -179,6 +180,7 @@ def test_qm_register_port_filter(qmcontroller):
                     "offset": 0.005,
                 }
             },
+            "digital_outputs": {},
         }
     }
 
@@ -234,6 +236,9 @@ def test_qm_register_drive_element(qmplatform):
     else:
         target_element = {
             "RF_inputs": {"port": ("octave3", 1)},
+            "digitalInputs": {
+                "output_switch": {"buffer": 18, "delay": 57, "port": ("con3", 1)}
+            },
             "intermediate_frequency": 1000000,
             "operations": {},
         }
@@ -278,6 +283,9 @@ def test_qm_register_readout_element(qmplatform):
         target_element = {
             "RF_inputs": {"port": ("octave2", 5)},
             "RF_outputs": {"port": ("octave2", 1)},
+            "digitalInputs": {
+                "output_switch": {"buffer": 18, "delay": 57, "port": ("con2", 9)}
+            },
             "intermediate_frequency": 1000000,
             "operations": {},
             "time_of_flight": 280,
@@ -296,6 +304,7 @@ def test_qm_register_pulse(qmplatform, pulse_type, qubit):
         target_pulse = {
             "operation": "control",
             "length": pulse.duration,
+            "digital_marker": "ON",
             "waveforms": {
                 "I": pulse.envelope_waveform_i().serial,
                 "Q": pulse.envelope_waveform_q().serial,
@@ -343,6 +352,52 @@ def test_qm_register_flux_pulse(qmplatform):
     controller.config.register_pulse(platform.qubits[qubit], qmpulse)
     assert controller.config.pulses[qmpulse.operation] == target_pulse
     assert target_pulse["waveforms"]["single"] in controller.config.waveforms
+
+
+def test_qm_register_pulses_with_different_frequencies(qmplatform):
+    platform = qmplatform
+    controller = platform.instruments["qm"]
+    qubit = next(iter(platform.qubits.keys()))
+    qd_pulse1 = platform.create_RX_pulse(qubit, start=0)
+    qd_pulse2 = platform.create_RX_pulse(qubit, start=qd_pulse1.finish)
+    qd_pulse2.frequency = qd_pulse2.frequency - int(5e6)
+    ro_pulse1 = platform.create_MZ_pulse(qubit, start=qd_pulse2.finish)
+    ro_pulse2 = platform.create_MZ_pulse(qubit, start=qd_pulse2.finish)
+    ro_pulse2.frequency = ro_pulse2.frequency + int(5e6)
+
+    sequence = PulseSequence()
+    sequence.add(qd_pulse1)
+    sequence.add(qd_pulse2)
+    sequence.add(ro_pulse1)
+    sequence.add(ro_pulse2)
+
+    if qmplatform.name == "qm_octave":
+        qmsequence, ro_pulses = controller.create_sequence(
+            platform.qubits, sequence, []
+        )
+        assert len(qmsequence.qmpulses) == 4
+        elements = {qmpulse.element for qmpulse in qmsequence.qmpulses}
+        assert len(elements) == 4
+        for element in elements:
+            if "readout" in element:
+                assert (
+                    controller.config.elements[element]["RF_inputs"]
+                    == controller.config.elements["readout0"]["RF_inputs"]
+                )
+                assert (
+                    controller.config.elements[element]["RF_outputs"]
+                    == controller.config.elements["readout0"]["RF_outputs"]
+                )
+            else:
+                assert (
+                    controller.config.elements[element]["RF_inputs"]
+                    == controller.config.elements["drive0"]["RF_inputs"]
+                )
+    else:
+        with pytest.raises(NotImplementedError):
+            qmsequence, ro_pulses = controller.create_sequence(
+                platform.qubits, sequence, []
+            )
 
 
 @pytest.mark.parametrize("duration", [0, 30])

@@ -1,29 +1,55 @@
+<<<<<<< HEAD
 import numpy as np
 
 from qibolab.instruments.emulator.models.methods import (
     default_noflux_platform_to_simulator_channels,
+=======
+from typing import Union
+
+import numpy as np
+
+from qibolab.instruments.emulator.models.methods import (
+    GHz,
+    default_noflux_platform2simulator_channels,
+    load_model_params,
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 )
 
 
 def generate_default_params():
+<<<<<<< HEAD
     # all time in ns and frequency in GHz
     """Returns template model parameters dictionary."""
     model_params = {
         "device_name": "model template for 0-1 system",
+=======
+    """Returns template model parameters dictionary."""
+    model_params = {
+        "device_name": "model template for 0-c1-1 system",
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         "topology": [[0, 1]],
         "nqubits": 2,
         "ncouplers": 0,
         "qubits_list": ["0", "1"],
         "couplers_list": [],
+<<<<<<< HEAD
         "sampling_rate": 2.0,  # units of samples/ns
+=======
+        "sampling_rate": 2.0e9,
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         "readout_error": {
             # same key datatype as per runcard
             0: [0.01, 0.02],
             1: [0.01, 0.02],
         },
         "drive_freq": {
+<<<<<<< HEAD
             "0": 5.0,
             "1": 5.1,
+=======
+            "0": 4.581205e9,
+            "1": 4.62381e9,
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         },
         "T1": {
             "0": 0.0,
@@ -34,6 +60,7 @@ def generate_default_params():
             "1": 0.0,
         },
         "lo_freq": {
+<<<<<<< HEAD
             "0": 5.0,
             "1": 5.1,
         },
@@ -47,20 +74,43 @@ def generate_default_params():
         },
         "coupling_strength": {
             "1_0": 5.0e-3,
+=======
+            "0": 5.0e9,
+            "1": 5.1e9,
+        },
+        "rabi_freq": {
+            "0": 0.2e9,
+            "1": 0.2e9,
+        },
+        "anharmonicity": {
+            "0": -0.20e9,
+            "1": -0.21e9,
+        },
+        "coupling_strength": {
+            "1_0": 5.0e6,
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         },
     }
     return model_params
 
 
 def generate_model_config(
+<<<<<<< HEAD
     model_params: dict = None,
     nlevels_q: list = None,
     topology: list = None,
+=======
+    model_params: Union[dict, str] = None, nlevels_q: list = None, topology: list = None
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 ) -> dict:
     """Generates the model configuration dictionary.
 
     Args:
+<<<<<<< HEAD
         model_params(dict): Dictionary containing the model parameters.
+=======
+        model_params(dict or str): Dictionary with model paramters or path of a yaml file (string) containing the model parameters.
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         nlevels_q(list, optional): List of the dimensions of each qubit to be simulated, in big endian order. Defaults to none, in which case a list of 2s with the same length as model_params['qubits_list'] will be used.
         topology(list, optional): List containing all pairs of qubit indices that are nearest neighbours. Defaults to none, in which case the value of model_params['topology'] will be used.
 
@@ -69,13 +119,22 @@ def generate_model_config(
     """
     if model_params is None:
         model_params = generate_default_params()
+<<<<<<< HEAD
+=======
+    else:
+        model_params = load_model_params(model_params)
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 
     # allows for user to overwrite topology in model_params for quick test
     if topology is None:
         topology = model_params["topology"]
 
     device_name = model_params["device_name"]
+<<<<<<< HEAD
     sampling_rate = model_params["sampling_rate"]
+=======
+    sampling_rate = model_params["sampling_rate"] / GHz  # units of samples/ns
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
     readout_error = model_params["readout_error"]
     qubits_list = model_params["qubits_list"]
 
@@ -94,11 +153,19 @@ def generate_model_config(
     for i, q in enumerate(qubits_list):
         # drift Hamiltonian terms (constant in time)
         drift_hamiltonian_dict["one_body"].append(
+<<<<<<< HEAD
             (2 * np.pi * model_params["lo_freq"][q], f"O_{q}", [q])
         )
         drift_hamiltonian_dict["one_body"].append(
             (
                 np.pi * model_params["anharmonicity"][q],
+=======
+            (2 * np.pi * model_params["lo_freq"][q] / GHz, f"O_{q}", [q])
+        )
+        drift_hamiltonian_dict["one_body"].append(
+            (
+                np.pi * model_params["anharmonicity"][q] / GHz,
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
                 f"O_{q} * O_{q} - O_{q}",
                 [q],
             )
@@ -107,14 +174,24 @@ def generate_model_config(
         # drive Hamiltonian terms (amplitude determined by pulse sequence)
         drive_hamiltonian_dict.update({f"D-{qubits_list[i]}": []})
         drive_hamiltonian_dict[f"D-{qubits_list[i]}"].append(
+<<<<<<< HEAD
             (2 * np.pi * model_params["rabi_freq"][q], f"X_{q}", [q])
+=======
+            (2 * np.pi * model_params["rabi_freq"][q] / GHz, f"X_{q}", [q])
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         )
 
         # dissipation terms (one qubit, constant in time)
         t1 = model_params["T1"][q]
+<<<<<<< HEAD
         g1 = 0 if t1 == 0 else 1.0 / t1 * 2 * np.pi
         t2 = model_params["T2"][q]
         g2 = 0 if t1 == 0 else 1.0 / t2 * 2 * np.pi
+=======
+        g1 = 0 if t1 == 0 else 1.0 / t1 * 2 * np.pi / GHz
+        t2 = model_params["T2"][q]
+        g2 = 0 if t1 == 0 else 1.0 / t2 * 2 * np.pi / GHz
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 
         dissipation_dict["t1"].append((np.sqrt(g1 / 2), f"sp01_{q}", [q]))
         dissipation_dict["t2"].append((np.sqrt(g2 / 2), f"Z01_{q}", [q]))
@@ -127,7 +204,11 @@ def generate_model_config(
         coupling = model_params["coupling_strength"][key]
         drift_hamiltonian_dict["two_body"].append(
             (
+<<<<<<< HEAD
                 2 * np.pi * coupling,
+=======
+                2 * np.pi * coupling / GHz,
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
                 f"bdag_{ind2} ^ b_{ind1} + b_{ind2} ^ bdag_{ind1}",
                 [ind2, ind1],
             )
@@ -148,9 +229,28 @@ def generate_model_config(
         "dissipation": dissipation_dict,
         "method": "master_equation",
         "readout_error": readout_error,
+<<<<<<< HEAD
         "platform_to_simulator_channels": default_noflux_platform_to_simulator_channels(
+=======
+        "platform2simulator_channels": default_noflux_platform2simulator_channels(
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
             qubits_list, couplers_list=[]
         ),
     }
 
     return model_config
+<<<<<<< HEAD
+=======
+
+
+'''
+def generate_model_config_oneQ(model_params: dict, nlevels_q: int = None) -> dict:
+    """Calls `generate_model_config` to construct a model configuration
+    dictionary for generic 1Q emulators."""
+    model_config = generate_model_config(
+        model_params, nlevels_q=[nlevels_q], topology=[]
+    )
+
+    return model_config
+'''
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb

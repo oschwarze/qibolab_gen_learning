@@ -13,7 +13,11 @@ Some of the key features of Qibolab are:
 - Create custom experimental drivers for custom lab setup.
 - Support multiple heterogeneous platforms.
 - Use existing calibration procedures for experimentalists.
+<<<<<<< HEAD
 - Provide a emulator backend equiped with various quantum dynamics simulation engines (currently support: QuTiP) for seamless emulation of quantum hardware.
+=======
+- Provide a emulator backend equipped with various quantum dynamics simulation engines (currently support: QuTiP) for seamless emulation of quantum hardware.
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 
 ## Documentation
 

@@ -14,11 +14,27 @@ from qutip.operators import identity as Id
 from qutip.tensor import tensor
 from qutip.ui.progressbar import EnhancedTextProgressBar
 
+<<<<<<< HEAD
 from qibolab.instruments.emulator.engines.generic import (
     dec_to_basis_string,
     op_from_instruction,
 )
 
+=======
+<<<<<<<< HEAD:src/qibolab/instruments/emulator/engines/qutip_engine.py
+from qibolab.instruments.emulator.engines.generic import (
+========
+from qibolab.instruments.emulator.backends.generic import (
+>>>>>>>> d8e087f0 (renamed src/qibolab/instruments/simulator to src/qibolab/instruments/emulator):src/qibolab/instruments/emulator/backends/qutip_backend.py
+    dec_to_basis_string,
+    function_from_array,
+    op_from_instruction,
+    specify_hilbert_space,
+)
+
+LITTLE_ENDIAN = True
+
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 
 def get_default_qutip_sim_opts():
     """Returns the default simulation options for the Qutip engine.
@@ -58,30 +74,42 @@ class QutipSimulator:
         self.sim_opts = sim_opts
         self.update()
 
+<<<<<<< HEAD
     def update_sim_opts(self, updated_sim_opts: Options):
         self.sim_opts = updated_sim_opts
 
+=======
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
     def update(self):
         """Updates the simulation engine by loading all parameters from
         `self.model_config` and `self.sim_opts`."""
         ### from model_config ###
         self.nlevels_q = self.model_config["nlevels_q"]  # as per runcard, big endian
         self.nlevels_c = self.model_config["nlevels_c"]  # as per runcard, big endian
+<<<<<<< HEAD
         self.nlevels_HS = np.flip(
             self.nlevels_c + self.nlevels_q
         ).tolist()  # little endian, qubits first then couplers
+=======
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         self.qubits_list = self.model_config[
             "qubits_list"
         ]  # as per runcard, big endian
         self.couplers_list = self.model_config[
             "couplers_list"
         ]  # as per runcard, big endian
+<<<<<<< HEAD
         self.combined_list = (
             self.couplers_list + self.qubits_list
         )  # as per runcard, big endian
         self.HS_list = np.flip(self.combined_list)
         print("Hilbert space structure: ", self.HS_list.tolist())
         print("Hilbert space dimensions: ", self.nlevels_HS)
+=======
+        self.HS_list, self.nlevels_HS = specify_hilbert_space(
+            self.model_config, LITTLE_ENDIAN
+        )
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 
         self.topology = self.model_config["topology"]
         self.nqubits = len(self.qubits_list)
@@ -345,8 +373,11 @@ class QutipSimulator:
             "simulation_time": sim_time,
         }
 
+<<<<<<< HEAD
         print("simulation time", sim_time)
 
+=======
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         return (
             times_dict,
             result.states,
@@ -406,22 +437,34 @@ class QutipSimulator:
         basis_list = self.op_dict["basis"]
         fullstate = Qobj(1)
 
+<<<<<<< HEAD
         combined_basis_vector = (
             cbasis_vector + basis_vector
         )  # basis_vector + cbasis_vector #
         for ind, coeff in enumerate(combined_basis_vector):
             qind = self.combined_list[ind]
+=======
+        combined_basis_vector = cbasis_vector + basis_vector
+        combined_list = self.couplers_list + self.qubits_list
+        for ind, coeff in enumerate(combined_basis_vector):
+            qind = combined_list[ind]
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
             fullstate = tensor(
                 basis_list[qind][coeff], fullstate
             )  # constructs little endian HS, qubits first then couplers, as per evolution
 
         return fullstate
 
+<<<<<<< HEAD
     def compute_fidelities(
+=======
+    def compute_overlaps(
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         self,
         target_states: List[Qobj],
         reference_states: Optional[Dict[str, Qobj]] = None,
     ) -> dict:
+<<<<<<< HEAD
         """Calculates the fidelities between a list of target device states,
         with respect to a list of reference device states.
 
@@ -432,11 +475,26 @@ class QutipSimulator:
 
         Returns:
             dict: Fidelities for each target state with each reference state.
+=======
+        """Calculates the overlaps between a list of target device states, with
+        respect to a list of reference device states.
+
+        Args:
+            target_states (list): List of target states (`qutip.Qobj`) of interest.
+            reference_states (dict, optional): Reference states labelled by their respective keys to compare `target_states` with. If not provided, all basis states of the full device Hilbert space labelled by their generalized bitstrings will be used.
+
+        Returns:
+            dict: Overlaps for each target state with each reference state.
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
         """
         if reference_states is None:
             reference_states = {}
 
+<<<<<<< HEAD
             full_HS_dim = np.product(self.nlevels_HS)
+=======
+            full_HS_dim = np.prod(self.nlevels_HS)
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
             for state_id in range(full_HS_dim):
                 basis_string = dec_to_basis_string(state_id, self.nlevels_HS)
                 basis_state = self.state_from_basis_vector(
@@ -446,12 +504,21 @@ class QutipSimulator:
                 reference_states.update({str(basis_string): psi})
 
         total_samples = len(target_states)
+<<<<<<< HEAD
         all_fidelities = {}
         for label, ref_state in reference_states.items():
             fid_list = [expect(ref_state, state) for state in target_states]
             all_fidelities.update({label: fid_list})
 
         return all_fidelities
+=======
+        all_overlaps = {}
+        for label, ref_state in reference_states.items():
+            fid_list = [expect(ref_state, state) for state in target_states]
+            all_overlaps.update({label: fid_list})
+
+        return all_overlaps
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 
 
 def make_arbitrary_state(statedata: np.ndarray, dims: list[int]) -> Qobj:
@@ -464,7 +531,11 @@ def make_arbitrary_state(statedata: np.ndarray, dims: list[int]) -> Qobj:
     Returns:
         `qutip.Qobj`: The quantum state object.
     """
+<<<<<<< HEAD
     shape = (np.product(dims[0]), np.product(dims[1]))
+=======
+    shape = (np.prod(dims[0]), np.prod(dims[1]))
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
     if shape[1] == 1:
         statetype = "ket"
     elif shape[0] == shape[1]:
@@ -473,6 +544,7 @@ def make_arbitrary_state(statedata: np.ndarray, dims: list[int]) -> Qobj:
     return Qobj(statedata, dims=dims, shape=shape, type=statetype)
 
 
+<<<<<<< HEAD
 def function_from_array(y: np.ndarray, x: np.ndarray):
     """Return function given a data array y and time array x."""
 
@@ -489,6 +561,8 @@ def function_from_array(y: np.ndarray, x: np.ndarray):
     return func
 
 
+=======
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 def extend_op_dim(
     op_qobj: Qobj,
     op_indices_q: List[int] = [0],

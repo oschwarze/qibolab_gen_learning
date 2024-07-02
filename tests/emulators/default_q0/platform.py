@@ -19,6 +19,10 @@ simulation_config = {
     "simulate_dissipation": True,
     "instant_measurement": True,
     "output_state_history": True,  # False, #
+<<<<<<< HEAD
+=======
+    "pulse compilation method": "analytic"
+>>>>>>> da0bddaf5ad2c76501070fbe887faa25d2c940eb
 }
 
 

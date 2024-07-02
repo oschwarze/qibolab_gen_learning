@@ -1,5 +1,4 @@
 from collections import deque
-from typing import Callable, Optional
 
 import numpy as np
 from qibo import __version__ as qibo_version
@@ -8,11 +7,32 @@ from qibo.config import raise_error
 from qibo.models import Circuit
 from qibo.result import MeasurementOutcomes
 
-from qibolab import ExecutionParameters
-from qibolab import __version__ as qibolab_version
-from qibolab import create_platform
 from qibolab.compilers import Compiler
-from qibolab.platform import Platform
+from qibolab.execution_parameters import ExecutionParameters
+from qibolab.platform import Platform, create_platform
+from qibolab.platform.load import available_platforms
+from qibolab.version import __version__ as qibolab_version
+
+
+def execute_qasm(circuit: str, platform, initial_state=None, nshots=1000):
+    """Executes a QASM circuit.
+
+    Args:
+        circuit (str): the QASM circuit.
+        platform (str): the platform where to execute the circuit.
+        initial_state (:class:`qibo.models.circuit.Circuit`): Circuit to prepare the initial state.
+                If ``None`` the default ``|00...0>`` state is used.
+        nshots (int): Number of shots to sample from the experiment.
+
+    Returns:
+        ``MeasurementOutcomes`` object containing the results acquired from the execution.
+    """
+    from qibolab.backends import QibolabBackend
+
+    circuit = Circuit.from_qasm(circuit)
+    return QibolabBackend(platform).execute_circuit(
+        circuit, initial_state=initial_state, nshots=nshots
+    )
 
 
 class QibolabBackend(NumpyBackend):
@@ -29,27 +49,12 @@ class QibolabBackend(NumpyBackend):
             "qibolab": qibolab_version,
         }
         self.compiler = Compiler.default()
-        self.transpiler: Optional[Callable] = None
 
     def apply_gate(self, gate, state, nqubits):  # pragma: no cover
         raise_error(NotImplementedError, "Qibolab cannot apply gates directly.")
 
     def apply_gate_density_matrix(self, gate, state, nqubits):  # pragma: no cover
         raise_error(NotImplementedError, "Qibolab cannot apply gates directly.")
-
-    def transpile(self, circuit):
-        """Applies the transpiler to a single circuit.
-
-        This transforms the circuit into proper connectivity and native
-        gates.
-        """
-        # TODO: Move this method to transpilers
-        if self.transpiler is None or self.transpiler.is_satisfied(circuit):
-            native = circuit
-            qubit_map = {q: q for q in range(circuit.nqubits)}
-        else:
-            native, qubit_map = self.transpiler(circuit)  # pylint: disable=E1102
-        return native, qubit_map
 
     def assign_measurements(self, measurement_map, readout):
         """Assigning measurement outcomes to
@@ -92,8 +97,7 @@ class QibolabBackend(NumpyBackend):
                 "Hardware backend only supports circuits as initial states.",
             )
 
-        native_circuit, qubit_map = self.transpile(circuit)
-        sequence, measurement_map = self.compiler.compile(native_circuit, self.platform)
+        sequence, measurement_map = self.compiler.compile(circuit, self.platform)
 
         if not self.platform.is_connected:
             self.platform.connect()
@@ -109,7 +113,7 @@ class QibolabBackend(NumpyBackend):
         self.assign_measurements(measurement_map, readout)
         return result
 
-    def execute_circuits(self, circuits, initial_state=None, nshots=1000):
+    def execute_circuits(self, circuits, initial_states=None, nshots=1000):
         """Executes multiple quantum circuits with a single communication with
         the control electronics.
 
@@ -117,31 +121,27 @@ class QibolabBackend(NumpyBackend):
 
         Args:
             circuits (list): List of circuits to execute.
-            initial_state (:class:`qibo.models.circuit.Circuit`): Circuit to prepare the initial state.
+            initial_states (:class:`qibo.models.circuit.Circuit`): Circuit to prepare the initial state.
                 If ``None`` the default ``|00...0>`` state is used.
             nshots (int): Number of shots to sample from the experiment.
 
         Returns:
             List of ``MeasurementOutcomes`` objects containing the results acquired from the execution of each circuit.
         """
-        if isinstance(initial_state, Circuit):
+        if isinstance(initial_states, Circuit):
             return self.execute_circuits(
-                circuit=[initial_state + circuit for circuit in circuits],
+                circuits=[initial_states + circuit for circuit in circuits],
                 nshots=nshots,
             )
-        if initial_state is not None:
+        if initial_states is not None:
             raise_error(
                 ValueError,
                 "Hardware backend only supports circuits as initial states.",
             )
 
         # TODO: Maybe these loops can be parallelized
-        native_circuits, _ = zip(*(self.transpile(circuit) for circuit in circuits))
         sequences, measurement_maps = zip(
-            *(
-                self.compiler.compile(circuit, self.platform)
-                for circuit in native_circuits
-            )
+            *(self.compiler.compile(circuit, self.platform) for circuit in circuits)
         )
 
         if not self.platform.is_connected:
@@ -167,3 +167,24 @@ class QibolabBackend(NumpyBackend):
                 gate.result.backend = self
                 gate.result.register_samples(np.array(samples).T)
         return results
+
+
+class MetaBackend:
+    """Meta-backend class which takes care of loading the qibolab backend."""
+
+    @staticmethod
+    def load(platform: str):
+        """Loads the backend.
+
+        Args:
+            platform (str): Name of the platform to load.
+        Returns:
+            qibo.backends.abstract.Backend: The loaded backend.
+        """
+        from qibolab.backends import QibolabBackend
+
+        return QibolabBackend(platform=platform)
+
+    def list_available(self) -> dict:
+        """Lists all the available qibolab platforms."""
+        return {platform: True for platform in available_platforms()}
