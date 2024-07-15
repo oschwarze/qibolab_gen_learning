@@ -4,6 +4,7 @@ device."""
 import copy
 import operator
 from typing import Dict, List, Union
+from collections import defaultdict
 
 import numpy as np
 
@@ -12,10 +13,12 @@ from qibolab.couplers import Coupler
 from qibolab.instruments.abstract import Controller
 from qibolab.instruments.emulator.engines.qutip_engine import QutipSimulator
 from qibolab.instruments.emulator.models import general_no_coupler_model
-from qibolab.pulses import PulseSequence, PulseType, ReadoutPulse
+from qibolab.pulses import PulseSequence, PulseType, ReadoutPulse,Drag,Rectangular,Pulse
 from qibolab.qubits import Qubit, QubitId
 from qibolab.result import IntegratedResults, SampleResults
 from qibolab.sweeper import Parameter, Sweeper, SweeperType
+from qibo.config import log
+
 
 AVAILABLE_SWEEP_PARAMETERS = {
     Parameter.amplitude,
@@ -86,6 +89,8 @@ class PulseSimulator(Controller):
         }
         self.simulate_dissipation = simulation_config["simulate_dissipation"]
         self.output_state_history = simulation_config["output_state_history"]
+        self.waveform_generation_method = simulation_config.get(
+            "waveform generation method", "PC interpolated") # defaults to piecewise constant interpolation (the old way of doing it)
 
     def connect(self):
         pass
@@ -115,14 +120,26 @@ class PulseSimulator(Controller):
             sequence = truncate_ro_pulses(sequence)
 
         # extract waveforms from pulse sequence
-        channel_waveforms = ps_to_waveform_dict(
-            sequence,
-            self.platform_to_simulator_channels,
-            self.sampling_rate,
-            self.sim_sampling_boost,
-            self.runcard_duration_in_dt_units,
-        )
+        log.info(f'compiling pulses for simulation using method: {self.waveform_generation_method}')
+        if self.waveform_generation_method == 'PC interpolated':
+            # Default compilation: interpolate pulse as piecewise constant function
+            # from uniformly distributed points with separation 1/(self.sim_sampling_boost*self.sampling_rate)
+            channel_waveforms = ps_to_waveform_dict(
+                sequence,
+                self.platform_to_simulator_channels,
+                self.sampling_rate,
+                self.sim_sampling_boost,
+                self.runcard_duration_in_dt_units,
+            )
+            channel_waveforms['pulse type'] = 'PC interpolated'
+        elif self.waveform_generation_method == 'analytic':
+            # Compile pulses into analytical expressions
+            channel_waveforms = ps_analytic_compilation(sequence,self.platform_to_simulator_channels)
 
+            channel_waveforms['time'] = np.linspace(sequence.start,sequence.start+sequence.duration,int(np.rint(self.sampling_rate*sequence.duration))) # sample according to smapling rate (in ghz)
+            channel_waveforms['pulse type'] = 'analytic'
+        else:
+            raise ValueError(f'unkown pulse compulation method: {self.waveform_generation_method}')
         # execute pulse simulation in emulator
         simulation_results = self.simulation_engine.qevolve(
             channel_waveforms, self.simulate_dissipation
@@ -416,7 +433,7 @@ def ps_to_waveform_dict(
     sampling_rate: float = 1.0,
     sim_sampling_boost: int = 1,
     runcard_duration_in_dt_units: bool = False,
-) -> dict[str, Union[np.ndarray, dict[str, np.ndarray]]]:
+) -> dict[str, Union[np.ndarray, dict[str, np.ndarray],str]]:
     """Converts pulse sequence to dictionary of time and channel separated
     waveforms.
 
@@ -759,3 +776,116 @@ def truncate_ro_pulses(
             sequence[i].duration = 1
 
     return sequence
+
+
+# Functions for converting pulses to analytical expressions.
+def stringify_pulse(pulse:Pulse,label:str|None=None) -> tuple[str,dict[str,float]]: 
+        """
+        given a Pulse calss, convert it into a string that can be fed to QuTip along with the arguments included.
+
+        Arguments:
+            (Pulse): pulse, the pulse to reexpress as a string representing the analytical expression for the pulse.
+            (label): suffix label for the coefficients in the analytical expression (to distinguish coefficients of different pulses from eachother)
+        
+        Returns:
+            tuple: tuple containig the string representation of the pulse and a dict mapping coefficient names (strings) to the values of the corresponding arguments of the initial `pulse`.
+        
+        """
+         # convert to GHz for compatibility with fact that time is measured in ns, and convert from frequency to angular freqeuncy. 
+         # I do this here rather than adding 2*np.pi in the string to avoid having to call numpy more than necessary from within C
+        args = {f'frequency_{label}':pulse.frequency*1e-9*2*np.pi,
+                f'phase_{label}':pulse.relative_phase,
+                f'start_{label}':pulse.start,
+                f'duration_{label}':pulse.duration}
+        #make the complex modulation part:
+        drive_signal = f'exp(1j*(frequency_{label}*t+phase_{label}))'
+        
+        window_specification = f'np.heaviside(t-start_{label},0)*np.heaviside(start_{label}+duration_{label}-t,0)' # if t == start or t==end then return 0  # could be replaced with scipy.special.expit (sigmoids) 
+        
+        def take_real(expr):
+            return 'real('+expr+')'
+        
+        
+        envelope = None
+        
+        if isinstance(pulse.shape,Drag):
+            pass
+            exponent = f'(-1/2)*(t-(start_{label}+(duration_{label})/2))**2 / (duration_{label}/rel_sigma_{label})**2)'
+            derivative = f'-(t-(start_{label}+(duration_{label})/2))/ (duration_{label}/rel_sigma_{label})**2)'
+            envelope = f'(amplitude_{label}*exp('+exponent+f')*(1+1j*beta_{label}*('+derivative+')'
+            args.update({f'amplitude_{label}':pulse.amplitude/np.sqrt(2), # for some reason, pulse.modulated_waveform_i not only modulates the waveform but also scales it by a factor 1/sqrt(2)....
+                        f'rel_sigma_{label}':pulse.shape.rel_sigma,
+                        f'beta_{label}':pulse.shape.beta})
+        elif isinstance(pulse.shape,Rectangular):
+            envelope = '1' # the envelope is just the heavisides whcih we already include in the window part
+        elif isinstance(pulse,ReadoutPulse):
+            envelope = '0' # Readout pulses are instant
+        else:
+            raise NotImplementedError(f'yet to implement string representation of pulse of type : {type(pulse)}')
+        
+        
+        #combine everything
+        expr = take_real(drive_signal+'*'+envelope)+'*'+window_specification
+        return expr, args
+
+def make_argument_label(qubit,channel,pulse_number) -> str:
+    """
+    Construct a label for coefficients to based on the qubit index, channel name and the pulse number.
+    
+    Returns:
+        str: string which can be used to suffix a coefficient related the the expression for the given pulse.
+    """
+    channel = channel.replace('-','_') 
+    return  f'q{qubit}_c{channel}_p{pulse_number}' #we give the arguments unique labels
+
+def ps_analytic_compilation(sequence:PulseSequence,platform_to_simulator_channels:dict):
+    """Converts pulse sequence to dictionary of time and channel separated
+    waveforms.
+    Args:
+        sequence (`qibolab.pulses.PulseSequence`): Pulse sequence to simulate.
+        platform_to_simulator_channels (dict): A dictionary that maps platform channel names to simulator channel names.
+    Returns:
+        dict: A dictionary containing the full list of simulation time steps, as well as the corresponding discretized channel waveforms labelled by their respective simulation channel names.
+    """
+    times_list = []
+    signals_list = []
+    emulator_channel_name_list = []
+
+    def channel_translator(platform_channel_name, frequency):
+        """Option to add frequency specific channel operators."""
+        try:
+            return platform_to_simulator_channels[platform_channel_name + frequency]
+        except Exception as err:
+            # frequency independent channel operation (default)
+            return platform_to_simulator_channels[platform_channel_name]
+
+    channel_sorted_pulses=defaultdict(list)
+    coefficients = {}
+    
+    """Assumes pulse duration in runcard is in ns."""
+    for qubit in sequence.qubits:
+        qubit_pulses = sequence.get_qubit_pulses(qubit)
+        for channel in qubit_pulses.channels:
+            channel_pulses = qubit_pulses.get_channel_pulses(channel)
+            for i, pulse in enumerate(channel_pulses):
+
+                pulse_expr, pulse_args  = stringify_pulse(pulse,make_argument_label(qubit,channel,i))
+                
+                if pulse.type.value == "qd":
+                    platform_channel_name = f"drive-{qubit}"
+                ## to add during flux pulse update
+                # elif pulse.type.value == "qf":
+                # platform_channel_name = f"flux-{qubit}"
+                elif pulse.type.value == "ro":
+                    platform_channel_name = f"readout-{qubit}"
+                
+                
+                name=channel_translator(platform_channel_name, pulse._if)
+                channel_sorted_pulses[name].append(pulse_expr)
+                coefficients.update(pulse_args)
+
+
+    pulse_instructions = {"channels": channel_sorted_pulses,"coefficients":coefficients,}
+
+
+    return pulse_instructions

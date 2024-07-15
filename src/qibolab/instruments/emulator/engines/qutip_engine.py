@@ -6,7 +6,7 @@ This module provides a engine for Quantum Toolbox in Python (QuTiP) to simulate 
 
 from collections import OrderedDict
 from timeit import default_timer as timer
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional,Tuple,Any,Union
 
 import numpy as np
 from qutip import Options, Qobj, basis, expect, ket2dm, mesolve, ptrace
@@ -159,7 +159,7 @@ class QutipSimulator:
             self.op_dict["sp01"].update({qid: sp01})
 
         ## initialize operators ##
-        self.drift = Qobj(dims=[self.nlevels_HS, self.nlevels_HS])
+        self.drift= Qobj(dims=[self.nlevels_HS, self.nlevels_HS])
         self.operators = {}
         self.static_dissipators = []
 
@@ -268,6 +268,82 @@ class QutipSimulator:
 
         return state.permute(reordering_flip)
 
+    
+    def assemble_H(self,channel_waveforms:dict,
+                   simulate_dissipation:bool=False) -> Tuple[List[Qobj],List[Union[Qobj,str]],np.ndarray,Tuple[Any],List[int]]:
+        """
+        Given a set of channel waveforms, construct the qutip quantum object describing 
+        the time-evolution according to the system's free dynamics,
+        external pulses, and (optionally) dissipation.
+        
+        Args:
+            channel_waveforms (dict): The dictionary containing the list of discretized time steps andthe corresponding channel waveform amplitudes labelled by the respective channel names.
+            simulate_dissipation (bool): Flag to add (True) or not (False) the dissipation terms associated with T1 and T2 times.
+        
+        Returns:
+            tuple: A tuple containing the time evolution generator (in some format which can passed to qutip.mesolve),
+            the static dissipators to be passed as the `c_ops` argument for qutip.mesolve, 
+            an iterable of times to be passed as the `tlist` argument to qutip.mesolve,
+            a dict containing args to be passed to qutip.mesolve, and
+            a list of qubit indices for readout.
+        """
+        drift:Qobj = self.drift
+        scheduled_operators = []
+        ro_qubit_list = []
+        H = [drift]
+        
+        # depending on the pulse type, we have different ways of adding terms to `H` and constructing `full_time_list`, `args`, and `ro_qubit_list`.
+        
+        if channel_waveforms['pulse type'] == 'PC interpolated':
+            full_time_list = channel_waveforms["time"]
+            channel_names = list(channel_waveforms["channels"].keys())
+
+            fp_list = []
+            for channel_name in channel_names:
+                fp_list.append(
+                    function_from_array(
+                        channel_waveforms["channels"][channel_name], full_time_list
+                    )
+                )            # add corresponding operators for non-readout channels to scheduled_operators; add qubit indices of readout channels to ro_qubit_list
+            for channel_name in channel_names:
+                if channel_name[:2] != "R-":
+                    scheduled_operators.append(self.operators[channel_name])
+                else:
+                    ro_qubit_list.append(int(channel_name[2:]))
+            ro_qubit_list = np.flip(np.sort(ro_qubit_list))
+            for i, op in enumerate(scheduled_operators):
+                H.append([op, fp_list[i]])
+                
+            args = {}
+            
+        elif channel_waveforms['pulse type'] == 'analytic':
+            # gather the QuTip operators for each pulse and combine with their time-dependent coefficients 
+            for channel_name,pulses in channel_waveforms['channels'].items():
+                if channel_name[:2] != "R-":
+                    qutip_operator = self.operators[channel_name]
+                    for pulse_expr in pulses:
+                        H.append([qutip_operator,pulse_expr]) # added as [operator, analytic formula]
+                else:
+                    ro_qubit_list.append(int(channel_name[2:]))
+            ro_qubit_list = np.flip(np.sort(ro_qubit_list))            
+
+            args = channel_waveforms['coefficients']
+            full_time_list = channel_waveforms["time"]
+        else:
+            raise ValueError(f"unknown pulse type: {channel_waveforms['pulse type']}")
+           
+
+      
+        
+        if simulate_dissipation is True:
+            static_dissipators = self.static_dissipators
+        else:
+            static_dissipators = []
+            
+            
+        return H,static_dissipators,full_time_list,args,ro_qubit_list
+        
+    
     def qevolve(
         self,
         channel_waveforms: dict,
@@ -282,37 +358,7 @@ class QutipSimulator:
         Returns:
             tuple: A tuple containing a dictionary of time-related information (sequence duration, simulation time step, and simulation time), the reduced density matrix of the quantum state at the end of simulation in the Hilbert space specified by the qubits present in the readout channels (little endian), as well as the corresponding list of qubit indices.
         """
-        full_time_list = channel_waveforms["time"]
-        channel_names = list(channel_waveforms["channels"].keys())
-
-        fp_list = []
-        for channel_name in channel_names:
-            fp_list.append(
-                function_from_array(
-                    channel_waveforms["channels"][channel_name], full_time_list
-                )
-            )
-
-        drift = self.drift
-        scheduled_operators = []
-        ro_qubit_list = []
-
-        # add corresponding operators for non-readout channels to scheduled_operators; add qubit indices of readout channels to ro_qubit_list
-        for channel_name in channel_names:
-            if channel_name[:2] != "R-":
-                scheduled_operators.append(self.operators[channel_name])
-            else:
-                ro_qubit_list.append(int(channel_name[2:]))
-        ro_qubit_list = np.flip(np.sort(ro_qubit_list))
-
-        if simulate_dissipation is True:
-            static_dissipators = self.static_dissipators
-        else:
-            static_dissipators = []
-
-        H = [drift]
-        for i, op in enumerate(scheduled_operators):
-            H.append([op, fp_list[i]])
+        H,static_dissipators,full_time_list,args,ro_qubit_list = self.assemble_H(channel_waveforms,simulate_dissipation)
 
         sim_start_time = timer()
         if self.sim_method == "master_equation":
@@ -322,6 +368,7 @@ class QutipSimulator:
                 full_time_list,
                 c_ops=static_dissipators,
                 options=self.sim_opts,
+                args=args,
                 progress_bar=EnhancedTextProgressBar(
                     len(full_time_list), int(len(full_time_list) / 100)
                 ),
