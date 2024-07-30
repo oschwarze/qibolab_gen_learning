@@ -90,7 +90,7 @@ class PulseSimulator(Controller):
         self.simulate_dissipation = simulation_config["simulate_dissipation"]
         self.output_state_history = simulation_config["output_state_history"]
         self.waveform_generation_method = simulation_config.get(
-            "waveform generation method", "PC interpolated") # defaults to piecewise constant interpolation (the old way of doing it)
+            "waveform_generation_method", "PC_interpolated") # defaults to piecewise constant interpolation (the old way of doing it)
 
     def connect(self):
         pass
@@ -121,7 +121,7 @@ class PulseSimulator(Controller):
 
         # extract waveforms from pulse sequence
         log.info(f'compiling pulses for simulation using method: {self.waveform_generation_method}')
-        if self.waveform_generation_method == 'PC interpolated':
+        if self.waveform_generation_method == 'PC_interpolated':
             # Default compilation: interpolate pulse as piecewise constant function
             # from uniformly distributed points with separation 1/(self.sim_sampling_boost*self.sampling_rate)
             channel_waveforms = ps_to_waveform_dict(
@@ -131,7 +131,7 @@ class PulseSimulator(Controller):
                 self.sim_sampling_boost,
                 self.runcard_duration_in_dt_units,
             )
-            channel_waveforms['pulse type'] = 'PC interpolated'
+            channel_waveforms['pulse type'] = 'PC_interpolated'
         elif self.waveform_generation_method == 'analytic':
             # Compile pulses into analytical expressions
             channel_waveforms = ps_analytic_compilation(sequence,self.platform_to_simulator_channels)
@@ -779,7 +779,7 @@ def truncate_ro_pulses(
 
 
 # Functions for converting pulses to analytical expressions.
-def stringify_pulse(pulse:Pulse,label:str|None=None) -> tuple[str,dict[str,float]]: 
+def stringify_pulse(pulse:Pulse,label:Union[str,None]=None) -> tuple[str,dict[str,float]]: 
         """
         given a Pulse calss, convert it into a string that can be fed to QuTip along with the arguments included.
 

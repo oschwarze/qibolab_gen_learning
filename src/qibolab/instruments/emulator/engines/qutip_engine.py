@@ -294,7 +294,7 @@ class QutipSimulator:
         
         # depending on the pulse type, we have different ways of adding terms to `H` and constructing `full_time_list`, `args`, and `ro_qubit_list`.
         
-        if channel_waveforms['pulse type'] == 'PC interpolated':
+        if channel_waveforms['pulse type'] == 'PC_interpolated':
             full_time_list = channel_waveforms["time"]
             channel_names = list(channel_waveforms["channels"].keys())
 
