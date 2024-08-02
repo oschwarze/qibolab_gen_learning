@@ -50,6 +50,7 @@ class PulseSimulator(Controller):
 
     def __init__(self):
         super().__init__(name=None, address=None)
+        self.simulation_times = None
 
     @property
     def sampling_rate(self):
@@ -131,13 +132,19 @@ class PulseSimulator(Controller):
                 self.sim_sampling_boost,
                 self.runcard_duration_in_dt_units,
             )
-            channel_waveforms['pulse type'] = 'PC_interpolated'
+            channel_waveforms['pulse_type'] = 'PC_interpolated'
         elif self.waveform_generation_method == 'analytic':
             # Compile pulses into analytical expressions
             channel_waveforms = ps_analytic_compilation(sequence,self.platform_to_simulator_channels)
 
-            channel_waveforms['time'] = np.linspace(sequence.start,sequence.start+sequence.duration,int(np.rint(self.sampling_rate*sequence.duration))) # sample according to smapling rate (in ghz)
-            channel_waveforms['pulse type'] = 'analytic'
+            
+            if self.simulation_times is None:
+                channel_waveforms['time'] = np.linspace(sequence.start,sequence.start+sequence.duration,int(np.rint(self.sampling_rate*sequence.duration))) # sample according to smapling rate (in ghz)
+            else:
+                #add start and end of sequence to simulation_times
+                channel_waveforms['time'] = np.concatenate((self.simulation_times,np.array([sequence.start,sequence.start+sequence.duration])))
+                channel_waveforms['time'].sort()
+            channel_waveforms['pulse_type'] = 'analytic'
         else:
             raise ValueError(f'unkown pulse compulation method: {self.waveform_generation_method}')
         # execute pulse simulation in emulator
@@ -194,6 +201,7 @@ class PulseSimulator(Controller):
             "sequence_duration": times_dict["sequence_duration"],
             "simulation_dt": times_dict["simulation_dt"],
             "simulation_time": times_dict["simulation_time"],
+            "full_simulation_times":times_dict["full_simulation_times"],
             "output_states": output_states,
         }
 
@@ -525,7 +533,6 @@ def ps_to_waveform_dict(
         tmin = np.amin(tmin)
         tmax = np.amax(tmax)
         Nt = int(np.round((tmax - tmin) * sampling_rate * sim_sampling_boost) + 1)
-        full_time_list = np.linspace(tmin, tmax, Nt)
 
     else:
         """Assumes pulse duration in runcard is in ns."""

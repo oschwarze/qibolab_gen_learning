@@ -294,7 +294,7 @@ class QutipSimulator:
         
         # depending on the pulse type, we have different ways of adding terms to `H` and constructing `full_time_list`, `args`, and `ro_qubit_list`.
         
-        if channel_waveforms['pulse type'] == 'PC_interpolated':
+        if channel_waveforms['pulse_type'] == 'PC_interpolated':
             full_time_list = channel_waveforms["time"]
             channel_names = list(channel_waveforms["channels"].keys())
 
@@ -316,7 +316,7 @@ class QutipSimulator:
                 
             args = {}
             
-        elif channel_waveforms['pulse type'] == 'analytic':
+        elif channel_waveforms['pulse_type'] == 'analytic':
             # gather the QuTip operators for each pulse and combine with their time-dependent coefficients 
             for channel_name,pulses in channel_waveforms['channels'].items():
                 if channel_name[:2] != "R-":
@@ -330,7 +330,7 @@ class QutipSimulator:
             args = channel_waveforms['coefficients']
             full_time_list = channel_waveforms["time"]
         else:
-            raise ValueError(f"unknown pulse type: {channel_waveforms['pulse type']}")
+            raise ValueError(f"unknown pulse type: {channel_waveforms['pulse_type']}")
            
 
       
@@ -354,9 +354,8 @@ class QutipSimulator:
         Args:
             channel_waveforms (dict): The dictionary containing the list of discretized time steps and the corresponding channel waveform amplitudes labelled by the respective channel names.
             simulate_dissipation (bool): Flag to add (True) or not (False) the dissipation terms associated with T1 and T2 times.
-
         Returns:
-            tuple: A tuple containing a dictionary of time-related information (sequence duration, simulation time step, and simulation time), the reduced density matrix of the quantum state at the end of simulation in the Hilbert space specified by the qubits present in the readout channels (little endian), as well as the corresponding list of qubit indices.
+            tuple: A tuple containing a dictionary of time-related information (sequence duration, simulation time step, simulation time, full_simulation_times), the reduced density matrix of the quantum state at the end of simulation in the Hilbert space specified by the qubits present in the readout channels (little endian), as well as the corresponding list of qubit indices.
         """
         H,static_dissipators,full_time_list,args,ro_qubit_list = self.assemble_H(channel_waveforms,simulate_dissipation)
 
@@ -385,6 +384,7 @@ class QutipSimulator:
             "sequence_duration": full_time_list[-1],
             "simulation_dt": full_time_list[1],
             "simulation_time": sim_time,
+            "full_simulation_times":full_time_list
         }
 
         return (
