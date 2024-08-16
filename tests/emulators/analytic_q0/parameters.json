@@ -1,8 +1,8 @@
 {
-    "device_name": "analytic_q0",
+    "device_name": "default_q0",
     "nqubits": 1,
     "ncouplers": 0,
-    "description": "IBM 5-qubit device FakeBelem, q0 only, analytic pulse generation",
+    "description": "IBM 5-qubit device FakeBelem, q0 only",
     "settings": {
         "nshots": 4096,
         "relaxation_time": 300000
@@ -34,8 +34,7 @@
                     "runcard_duration_in_dt_units": false,
                     "instant_measurement": true,
                     "simulate_dissipation": true,
-                    "output_state_history": true,
-                    "waveform_generation_method": "analytic"
+                    "output_state_history": true
             },
             "sim_opts": null,
             "bounds": {

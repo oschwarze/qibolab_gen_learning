@@ -24,7 +24,7 @@ from qibolab.sweeper import Parameter, QubitParameter, Sweeper
 os.environ[PLATFORMS] = str(pathlib.Path(__file__).parent / "emulators/")
 
 SWEPT_POINTS = 2
-EMULATORS = ["default_q0"]
+EMULATORS = ["default_q0","analytic_q0"]
 MODELS = [models_template, general_no_coupler_model]
 
 
