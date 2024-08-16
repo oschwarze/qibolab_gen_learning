@@ -50,6 +50,7 @@ class PulseSimulator(Controller):
 
     def __init__(self):
         super().__init__(name=None, address=None)
+        self.simulation_times = None
 
     @property
     def sampling_rate(self):
@@ -90,7 +91,7 @@ class PulseSimulator(Controller):
         self.simulate_dissipation = simulation_config["simulate_dissipation"]
         self.output_state_history = simulation_config["output_state_history"]
         self.waveform_generation_method = simulation_config.get(
-            "waveform_generation_method", "PC interpolated") # defaults to piecewise constant interpolation (the old way of doing it)
+            "waveform_generation_method", "PC_interpolated") # defaults to piecewise constant interpolation (the old way of doing it)
 
     def connect(self):
         pass
@@ -121,7 +122,7 @@ class PulseSimulator(Controller):
 
         # extract waveforms from pulse sequence
         log.info(f'compiling pulses for simulation using method: {self.waveform_generation_method}')
-        if self.waveform_generation_method == 'PC interpolated':
+        if self.waveform_generation_method == 'PC_interpolated':
             # Default compilation: interpolate pulse as piecewise constant function
             # from uniformly distributed points with separation 1/(self.sim_sampling_boost*self.sampling_rate)
             channel_waveforms = ps_to_waveform_dict(
@@ -131,12 +132,18 @@ class PulseSimulator(Controller):
                 self.sim_sampling_boost,
                 self.runcard_duration_in_dt_units,
             )
-            channel_waveforms['pulse_type'] = 'PC interpolated'
+            channel_waveforms['pulse_type'] = 'PC_interpolated'
         elif self.waveform_generation_method == 'analytic':
             # Compile pulses into analytical expressions
             channel_waveforms = ps_analytic_compilation(sequence,self.platform_to_simulator_channels)
 
-            channel_waveforms['time'] = np.linspace(sequence.start,sequence.start+sequence.duration,int(np.rint(self.sampling_rate*sequence.duration))) # sample according to smapling rate (in ghz)
+            
+            if self.simulation_times is None:
+                channel_waveforms['time'] = np.linspace(sequence.start,sequence.start+sequence.duration,int(np.rint(self.sampling_rate*sequence.duration))) # sample according to smapling rate (in ghz)
+            else:
+                #add start and end of sequence to simulation_times
+                channel_waveforms['time'] = np.concatenate((self.simulation_times,np.array([sequence.start,sequence.start+sequence.duration])))
+                channel_waveforms['time'].sort()
             channel_waveforms['pulse_type'] = 'analytic'
         else:
             raise ValueError(f'unkown pulse compulation method: {self.waveform_generation_method}')
@@ -195,6 +202,7 @@ class PulseSimulator(Controller):
             "sequence_duration": times_dict["sequence_duration"],
             "simulation_dt": times_dict["simulation_dt"],
             "simulation_time": times_dict["simulation_time"],
+            "full_simulation_times":times_dict["full_simulation_times"],
             "output_states": output_states,
         }
 
@@ -780,7 +788,7 @@ def truncate_ro_pulses(
 
 
 # Functions for converting pulses to analytical expressions.
-def stringify_pulse(pulse:Pulse,label:str|None=None) -> tuple[str,dict[str,float]]: 
+def stringify_pulse(pulse:Pulse,label:Union[str,None]=None) -> tuple[str,dict[str,float]]: 
         """
         given a Pulse calss, convert it into a string that can be fed to QuTip along with the arguments included.
 
