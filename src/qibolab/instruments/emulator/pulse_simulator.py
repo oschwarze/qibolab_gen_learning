@@ -131,13 +131,13 @@ class PulseSimulator(Controller):
                 self.sim_sampling_boost,
                 self.runcard_duration_in_dt_units,
             )
-            channel_waveforms['pulse type'] = 'PC interpolated'
+            channel_waveforms['pulse_type'] = 'PC interpolated'
         elif self.waveform_generation_method == 'analytic':
             # Compile pulses into analytical expressions
             channel_waveforms = ps_analytic_compilation(sequence,self.platform_to_simulator_channels)
 
             channel_waveforms['time'] = np.linspace(sequence.start,sequence.start+sequence.duration,int(np.rint(self.sampling_rate*sequence.duration))) # sample according to smapling rate (in ghz)
-            channel_waveforms['pulse type'] = 'analytic'
+            channel_waveforms['pulse_type'] = 'analytic'
         else:
             raise ValueError(f'unkown pulse compulation method: {self.waveform_generation_method}')
         # execute pulse simulation in emulator
