@@ -90,7 +90,7 @@ class PulseSimulator(Controller):
         self.simulate_dissipation = simulation_config["simulate_dissipation"]
         self.output_state_history = simulation_config["output_state_history"]
         self.waveform_generation_method = simulation_config.get(
-            "waveform generation method", "PC interpolated") # defaults to piecewise constant interpolation (the old way of doing it)
+            "waveform_generation_method", "PC interpolated") # defaults to piecewise constant interpolation (the old way of doing it)
 
     def connect(self):
         pass
