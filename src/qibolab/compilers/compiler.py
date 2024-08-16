@@ -151,7 +151,8 @@ class Compiler:
             for gate in set(filter(lambda x: x is not None, moment)):
                 if isinstance(gate, gates.Align):
                     for qubit in gate.qubits:
-                        delays[qubit] += gate.delay
+                        delays[qubit] += gate.parameters[0] # FIXME: temporary workaround for Align gate as ParametrizedGate
+                        #delays[qubit] += gate.delay
                     continue
                 gate_sequence, gate_phases = self._compile_gate(
                     gate, platform, sequence, virtual_z_phases, moment_start, delays
