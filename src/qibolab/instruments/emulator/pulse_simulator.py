@@ -148,6 +148,7 @@ class PulseSimulator(Controller):
         else:
             raise ValueError(f'unkown pulse compulation method: {self.waveform_generation_method}')
         # execute pulse simulation in emulator
+
         simulation_results = self.simulation_engine.qevolve(
             channel_waveforms, self.simulate_dissipation
         )
@@ -533,6 +534,7 @@ def ps_to_waveform_dict(
         tmin = np.amin(tmin)
         tmax = np.amax(tmax)
         Nt = int(np.round((tmax - tmin) * sampling_rate * sim_sampling_boost) + 1)
+        full_time_list = np.linspace(tmin, tmax, Nt)
 
     else:
         """Assumes pulse duration in runcard is in ns."""
